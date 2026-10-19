@@ -340,7 +340,6 @@
         fetchLeaderboard();
     });
 
-    // 서버 중앙 stock_market 테이블로부터 실시간 주가 동기화 수신
     async function fetchServerStockMarket() {
         try {
             const { data, error } = await db.from('stock_market').select('*').order('ticker');
@@ -414,7 +413,6 @@
         const fullName = `${school} ${grade} ${cls}반 ${nick}`;
 
         try {
-            // portfolio 컬럼이 없을 경우를 대비해 예외 안전 처리
             let userCash = 1000000;
             let userPortfolio = {};
 
@@ -469,7 +467,6 @@
         renderStockMarket();
         updateWatchlistNewsBanner();
 
-        // 3초마다 서버 DB 주가 조회 수신
         if (gameState.fetchInterval) clearInterval(gameState.fetchInterval);
         gameState.fetchInterval = setInterval(async () => {
             await fetchServerStockMarket();
@@ -477,7 +474,6 @@
         }, 3000);
     }
 
-    // 서버 DB 변동 시 유저 총 평가 자산 자동 업데이트
     async function syncUserTotalAssetToServer() {
         if (!gameState.currentUser) return;
         const totalAsset = calculateTotalAsset();
