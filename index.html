@@ -427,6 +427,18 @@
                 }
                 userCash = data.coins || 1000000;
                 userPortfolio = data.portfolio || {};
+
+                // 만약 기존 코인(coins)에 주식 평가금액이 이미 포함되어 저장된 경우를 고려하여 예수금 정산
+                let stockVal = 0;
+                for (let ticker in userPortfolio) {
+                    const shares = userPortfolio[ticker] || 0;
+                    const curPrice = gameState.marketPrices[ticker] || 1000;
+                    stockVal += shares * curPrice;
+                }
+                // 예수금 = 총 자산 - 보유 주식 평가액 (최소 0원 이상 보장)
+                if (userCash >= stockVal) {
+                    userCash = userCash - stockVal;
+                }
             } else {
                 const newPwd = prompt(`신규 계정입니다. 사용할 비밀번호를 설정하세요:`);
                 if (newPwd === null || !newPwd.trim()) {
@@ -466,6 +478,7 @@
         
         renderStockMarket();
         updateWatchlistNewsBanner();
+        updateHUD();
 
         if (gameState.fetchInterval) clearInterval(gameState.fetchInterval);
         gameState.fetchInterval = setInterval(async () => {
@@ -474,6 +487,19 @@
         }, 3000);
     }
 
+    // 총 자산(현금 + 보유 주식 평가액) 계산
+    function calculateTotalAsset() {
+        if (!gameState.currentUser) return 0;
+        let stockValue = 0;
+        for (let ticker in gameState.currentUser.portfolio) {
+            const shares = gameState.currentUser.portfolio[ticker] || 0;
+            const price = gameState.marketPrices[ticker] || 0;
+            stockValue += shares * price;
+        }
+        return gameState.currentUser.cash + stockValue;
+    }
+
+    // 서버로 유저 총 자산 및 포트폴리오 동기화 반영
     async function syncUserTotalAssetToServer() {
         if (!gameState.currentUser) return;
         const totalAsset = calculateTotalAsset();
@@ -490,7 +516,7 @@
     function renderStockMarket() {
         const grid = document.getElementById('stock-market-grid');
         if (!gameState.stocksList || gameState.stocksList.length === 0) {
-            grid.innerHTML = '<div style="color:#94a3b8; padding:20px;">등록된 주식 종목이 없습니다. Supabase에 초기 데이터를 입력했는지 확인해 주세요.</div>';
+            grid.innerHTML = '<div style="color:#94a3b8; padding:20px;">등록된 주식 종목이 없습니다.</div>';
             return;
         }
 
@@ -561,6 +587,7 @@
         await syncUserTotalAssetToServer();
         updateHUD();
         renderStockMarket();
+        fetchLeaderboard();
     }
 
     async function sellStock(ticker) {
@@ -584,6 +611,7 @@
         await syncUserTotalAssetToServer();
         updateHUD();
         renderStockMarket();
+        fetchLeaderboard();
     }
 
     function openDetailModal(ticker) {
@@ -656,6 +684,7 @@
         await syncUserTotalAssetToServer();
         updateHUD();
         renderStockMarket();
+        fetchLeaderboard();
         openDetailModal(ticker);
     }
 
@@ -675,16 +704,8 @@
         await syncUserTotalAssetToServer();
         updateHUD();
         renderStockMarket();
+        fetchLeaderboard();
         openDetailModal(ticker);
-    }
-
-    function calculateTotalAsset() {
-        if (!gameState.currentUser) return 0;
-        let stockValue = 0;
-        for (let ticker in gameState.currentUser.portfolio) {
-            stockValue += (gameState.currentUser.portfolio[ticker] || 0) * (gameState.marketPrices[ticker] || 0);
-        }
-        return gameState.currentUser.cash + stockValue;
     }
 
     function updateHUD() {
