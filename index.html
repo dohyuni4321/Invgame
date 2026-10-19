@@ -220,7 +220,7 @@
         </div>
 
         <div style="font-size: 15px; font-weight: bold; margin-bottom: 12px; color: #94a3b8;">
-            ⚡ 미국 주식 상위 50선 실시간 공통 시세 (모든 유저 실시간 동기화)
+            ⚡ 미국 주식 상위 50선 공통 실시간 변동성 장세 (모든 유저 실시간 동기화)
         </div>
 
         <div class="stock-grid" id="stock-market-grid"></div>
@@ -274,9 +274,9 @@
         <div class="modal-body-scroll">
             <div class="guide-box">
                 <b>1. 실시간 공통 시세 동기화</b><br>
-                - 모든 플레이어가 접속한 컴퓨터와 상관없이 서버 표준 시간에 맞춰 완전히 동일한 주가와 뉴스를 공유합니다.<br><br>
-                <b>2. 안정적인 뉴스 시스템</b><br>
-                - 관심종목을 추가하거나 삭제해도 뉴스가 무작위로 리셋되지 않으며, 일정한 주기로 고정 갱신됩니다.
+                - 모든 플레이어가 완전히 동일한 주가와 고유 뉴스를 공유합니다.<br><br>
+                <b>2. 뉴스 가격 반영 시스템</b><br>
+                - 뉴스 내용(호재/악재)에 따라 해당 주식의 가격 상승 및 하락 변동성이 실제로 강력하게 반영됩니다.
             </div>
         </div>
     </div>
@@ -337,37 +337,39 @@
         { ticker: 'PLTR', name: '팔란티어', price: 65000 }, { ticker: 'COIN', name: '코인베이스', price: 310000 }
     ];
 
+    // 뉴스 종류 및 주가에 미치는 영향 정의 (positive: 호재, negative: 악재, neutral: 중립)
+    const NEWS_TYPES = [
+        { text: "🚀 어닝 서프라이즈 기록하며 시장 전망치 대폭 상회!", type: "positive", weight: 0.035 },
+        { text: "🔥 신제품 발표 및 대규모 계약 체결로 매수세 집중", type: "positive", weight: 0.025 },
+        { text: "💼 월가 주요 투자은행, 목표 주가 대폭 상향 조정 발표", type: "positive", weight: 0.02 },
+        { text: "⚖️ 글로벌 공급망 불확실성 및 일시적 규제 이슈 발생", type: "negative", weight: -0.025 },
+        { text: "⚠️ 실적 부진 우려 및 기관 투자자들의 차익실현 매물 출회", type: "negative", weight: -0.03 },
+        { text: "📊 시장 전체 관망세 속 평탄한 거래량 유지 중", type: "neutral", weight: 0.0 }
+    ];
+
     let gameState = {
         currentUser: null,
         marketPrices: {},
         previousPrices: {},
         priceHistories: {},
         stockNews: {},
+        stockNewsType: {},
         watchlist: JSON.parse(localStorage.getItem('stock_watchlist')) || [],
         selectedTicker: null,
         isPlaying: false,
         stockInterval: null
     };
 
-    const SAMPLE_NEWS_TEMPLATES = [
-        "신제품 발표 기대감에 대규모 매수세 유입",
-        "글로벌 공급망 불확실성으로 인한 일시적 변동성",
-        "어닝 서프라이즈 기록하며 시장 전망치 상회",
-        "연방준비제도 금리 발표에 전 세계 증시 민감 반응",
-        "기관 및 외국인 투자자들의 집중 매수 포착"
-    ];
-
-    // 현재 시간(10초 단위 타임스탬프 등)을 활용해 모든 유저가 동일한 난수 결과와 뉴스를 공유하도록 계산
-    function getSyncSeed() {
-        return Math.floor(Date.now() / 10000); // 10초마다 모든 유저 공통 동기화
-    }
-
-    // 초기값 세팅
-    US_STOCKS_50.forEach(s => {
-        gameState.marketPrices[s.ticker] = s.price;
-        gameState.previousPrices[s.ticker] = s.price;
-        gameState.priceHistories[s.ticker] = [s.price, s.price];
-        gameState.stockNews[s.ticker] = SAMPLE_NEWS_TEMPLATES[0];
+    // 초기값 및 공통 뉴스 세팅
+    US_STOCKS_50.forEach((stock, idx) => {
+        gameState.marketPrices[stock.ticker] = stock.price;
+        gameState.previousPrices[stock.ticker] = stock.price;
+        gameState.priceHistories[stock.ticker] = [stock.price, stock.price];
+        
+        // 종목마다 고유한 초기 뉴스 할당
+        const defaultNews = NEWS_TYPES[idx % NEWS_TYPES.length];
+        gameState.stockNews[stock.ticker] = defaultNews.text;
+        gameState.stockNewsType[stock.ticker] = defaultNews.weight;
     });
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -382,15 +384,7 @@
         if (savedNick) document.getElementById('nickname-input').value = savedNick;
 
         fetchLeaderboard();
-        initializeCommonNews();
     });
-
-    function initializeCommonNews() {
-        US_STOCKS_50.forEach((stock, index) => {
-            const newsIndex = (index * 7) % SAMPLE_NEWS_TEMPLATES.length;
-            gameState.stockNews[stock.ticker] = SAMPLE_NEWS_TEMPLATES[newsIndex];
-        });
-    }
 
     async function fetchLeaderboard() {
         try {
@@ -479,22 +473,28 @@
         renderStockMarket();
         updateWatchlistNewsBanner();
 
-        // 3초마다 모든 사용자에게 동일한 규칙으로 가격 및 뉴스 동기화 갱신
+        // 매 3초마다 모든 유저에게 완전히 동일한 시간 기반 난수 동기화 및 뉴스 반영 주가 산출
         gameState.stockInterval = setInterval(() => {
             if (!gameState.isPlaying) return;
 
-            const timeStep = Math.floor(Date.now / 3000);
+            const syncTimeKey = Math.floor(Date.now() / 3000);
 
             US_STOCKS_50.forEach((stock, idx) => {
-                let current = gameState.marketPrices[stock.ticker];
+                let current = gameState.marketPrices[stock.ticker] || stock.price;
                 gameState.previousPrices[stock.ticker] = current;
 
-                // 의사 난수(Pseudo-random) 공통 알고리즘 적용으로 모든 유저에게 가격 일치
-                let pseudoRandom = Math.sin(timeStep + idx * 99) * 10000;
-                let variation = (pseudoRandom - Math.floor(pseudoRandom)) * 5 - 2.48;
-                let changePercent = variation / 100;
+                // 공통 동기화 난수 알고리즘
+                let pseudoRandom = Math.sin(syncTimeKey + idx * 77) * 10000;
+                let randomVal = (pseudoRandom - Math.floor(pseudoRandom));
                 
-                let newPrice = Math.max(1000, Math.round(current * (1 + changePercent)));
+                // 뉴스의 가중치(weight)가 주가 변동에 직접 반영되도록 계산
+                let newsWeight = gameState.stockNewsType[stock.ticker] || 0;
+                let baseVariation = (randomVal * 4 - 1.95) / 100; // -1.95% ~ +2.05%
+                let totalChangeRate = baseVariation + newsWeight;
+
+                let newPrice = Math.max(1000, Math.round(current * (1 + totalChangeRate)));
+                if (isNaN(newPrice)) newPrice = stock.price; // NaN 방지 안전장치
+
                 gameState.marketPrices[stock.ticker] = newPrice;
                 
                 if (!gameState.priceHistories[stock.ticker]) gameState.priceHistories[stock.ticker] = [];
@@ -503,10 +503,11 @@
                     gameState.priceHistories[stock.ticker].shift();
                 }
 
-                // 주기적으로 뉴스도 공통 업데이트
-                if (Math.random() < 0.2) {
-                    const newsIdx = Math.floor(Math.abs(pseudoRandom) % SAMPLE_NEWS_TEMPLATES.length);
-                    gameState.stockNews[stock.ticker] = SAMPLE_NEWS_TEMPLATES[newsIdx];
+                // 일정 확률로 종목마다 새로운 뉴스로 교체 및 가격 반영 강화
+                if (Math.abs(Math.sin(syncTimeKey + idx)) < 0.15) {
+                    const newNewsObj = NEWS_TYPES[Math.floor(Math.abs(pseudoRandom * 10) % NEWS_TYPES.length)];
+                    gameState.stockNews[stock.ticker] = newNewsObj.text;
+                    gameState.stockNewsType[stock.ticker] = newNewsObj.weight;
                 }
             });
 
@@ -524,10 +525,10 @@
         let html = '';
 
         US_STOCKS_50.forEach(stock => {
-            const price = gameState.marketPrices[stock.ticker];
-            const prevPrice = gameState.previousPrices[stock.ticker];
+            const price = gameState.marketPrices[stock.ticker] || stock.price;
+            const prevPrice = gameState.previousPrices[stock.ticker] || price;
             const diff = price - prevPrice;
-            const diffPercent = ((diff / prevPrice) * 100).toFixed(2);
+            const diffPercent = prevPrice > 0 ? ((diff / prevPrice) * 100).toFixed(2) : '0.00';
             const isUp = diff >= 0;
             const dollarPrice = (price / EXCHANGE_RATE).toFixed(2);
             const myShares = gameState.currentUser.portfolio[stock.ticker] || 0;
@@ -613,7 +614,7 @@
         const price = gameState.marketPrices[ticker];
         const prevPrice = gameState.previousPrices[ticker];
         const diff = price - prevPrice;
-        const diffPercent = ((diff / prevPrice) * 100).toFixed(2);
+        const diffPercent = prevPrice > 0 ? ((diff / prevPrice) * 100).toFixed(2) : '0.00';
         const isUp = diff >= 0;
         const dollarPrice = (price / EXCHANGE_RATE).toFixed(2);
 
@@ -712,10 +713,9 @@
             return;
         }
 
-        // 관심종목을 토글해도 뉴스가 랜덤으로 바뀌지 않고 고정된 뉴스 내용 유지
         const firstTicker = gameState.watchlist[0];
         const stockObj = US_STOCKS_50.find(s => s.ticker === firstTicker);
-        const currentNews = gameState.stockNews[firstTicker] || SAMPLE_NEWS_TEMPLATES[0];
+        const currentNews = gameState.stockNews[firstTicker] || "시장 동향 주시 중";
 
         banner.innerHTML = `<span>🔥 [관심종목 속보] <b>${stockObj.name} (${firstTicker})</b>: ${currentNews}</span>`;
     }
@@ -726,7 +726,7 @@
 
         US_STOCKS_50.forEach(stock => {
             const price = gameState.marketPrices[stock.ticker];
-            const newsText = gameState.stockNews[stock.ticker] || SAMPLE_NEWS_TEMPLATES[0];
+            const newsText = gameState.stockNews[stock.ticker] || "정상 거래 진행 중";
             html += `
                 <div class="news-card-item">
                     <div class="news-card-title">${stock.name} (${stock.ticker}) - 현재가: ${price.toLocaleString()}원</div>
