@@ -220,7 +220,7 @@
         </div>
 
         <div style="font-size: 15px; font-weight: bold; margin-bottom: 12px; color: #94a3b8;">
-            ⚡ 미국 주식 상위 50선 공통 실시간 변동성 장세 (모든 유저 실시간 동기화)
+            ⚡ 서버 중앙 동기화 시세 DB (24시간 오프라인 실시간 반영)
         </div>
 
         <div class="stock-grid" id="stock-market-grid"></div>
@@ -261,7 +261,7 @@
 <div id="news-modal" class="modal">
     <div class="modal-content">
         <button class="modal-close" onclick="closeModal('news-modal')">✖</button>
-        <h2 style="font-size: 22px; font-weight: 900; color: #0f172a;">📰 증권 실시간 공통 뉴스판</h2>
+        <h2 style="font-size: 22px; font-weight: 900; color: #0f172a;">📰 서버 동기화 증권 실시간 뉴스판</h2>
         <div class="modal-body-scroll" id="news-container"></div>
     </div>
 </div>
@@ -273,10 +273,11 @@
         <h2 style="font-size: 22px; font-weight: 900; color: #0f172a;">📖 주식 시뮬레이터 규칙 안내</h2>
         <div class="modal-body-scroll">
             <div class="guide-box">
-                <b>1. 실시간 공통 시세 동기화</b><br>
-                - 모든 플레이어가 완전히 동일한 주가와 고유 뉴스를 공유합니다.<br><br>
-                <b>2. 뉴스 가격 반영 시스템</b><br>
-                - 뉴스 내용(호재/악재)에 따라 해당 주식의 가격 상승 및 하락 변동성이 실제로 강력하게 반영됩니다.
+                <b>1. 서버 데이터베이스 기반 자동 시세 변동</b><br>
+                - 주식 시세는 서버(Supabase DB)에서 24시간 계속 변동합니다.<br>
+                - 컴퓨터나 웹페이지를 꺼두어도 보유 주식 가치 및 랭킹이 실시간으로 변동됩니다.<br><br>
+                <b>2. 뉴스 가격 영향력 연동</b><br>
+                - 뉴스 내용(호재/악재)에 따라 해당 주식의 실제 등락 가중치가 변경됩니다.
             </div>
         </div>
     </div>
@@ -309,68 +310,18 @@
 
     const EXCHANGE_RATE = 1350;
 
-    const US_STOCKS_50 = [
-        { ticker: 'NVDA', name: '엔비디아', price: 120000 }, { ticker: 'AAPL', name: '애플', price: 210000 },
-        { ticker: 'MSFT', name: '마이크로소프트', price: 580000 }, { ticker: 'GOOGL', name: '알파벳 (구글)', price: 180000 },
-        { ticker: 'AMZN', name: '아마존', price: 250000 }, { ticker: 'META', name: '메타 플랫폼스', price: 620000 },
-        { ticker: 'TSLA', name: '테슬라', price: 290000 }, { ticker: 'BRK.B', name: '버크셔해서웨이', price: 590000 },
-        { ticker: 'TSM', name: 'TSMC', price: 210000 }, { ticker: 'LLY', name: '일라이 릴리', price: 1100000 },
-        { ticker: 'AVGO', name: '브로드컴', price: 220000 }, { ticker: 'WMT', name: '월마트', price: 100000 },
-        { ticker: 'JPM', name: 'JP모건체이스', price: 280000 }, { ticker: 'NFLX', name: '넷플릭스', price: 950000 },
-        { ticker: 'AMD', name: 'AMD', price: 180000 }, { ticker: 'XOM', name: '엑손모빌', price: 150000 },
-        { ticker: 'MA', name: '마스터카드', price: 650000 }, { ticker: 'UNH', name: '유나이티드헬스', price: 780000 },
-        { ticker: 'COST', name: '코스트코', price: 1150000 }, { ticker: 'PG', name: '프록터앤갬블', price: 230000 },
-        { ticker: 'JNJ', name: '존슨앤드존슨', price: 210000 }, { ticker: 'HD', name: '홈디포', price: 530000 },
-        { ticker: 'BAC', name: '뱅크오브아메리카', price: 55000 }, { ticker: 'ABBV', name: '애브비', price: 280000 },
-        { ticker: 'CRM', name: '세일즈포스', price: 420000 }, { ticker: 'ORCL', name: '오라클', price: 210000 },
-        { ticker: 'CVX', name: '셰브론', price: 200000 }, { ticker: 'MRK', name: '머크', price: 140000 },
-        { ticker: 'ADBE', name: '어도비', price: 720000 }, { ticker: 'TMUS', name: '티모바일', price: 280000 },
-        { ticker: 'DIS', name: '디즈니', price: 130000 }, { ticker: 'KO', name: '코카콜라', price: 95000 },
-        { ticker: 'PEP', name: '펩시코', price: 210000 }, { ticker: 'QCOM', name: '퀄컴', price: 240000 },
-        { ticker: 'INTC', name: '인텔', price: 35000 }, { ticker: 'AMGN', name: '암젠', price: 410000 },
-        { ticker: 'IBM', name: 'IBM', price: 320000 }, { ticker: 'CAT', name: '캐터필러', price: 540000 },
-        { ticker: 'VZ', name: '버라이즌', price: 55000 }, { ticker: 'PFE', name: '화이자', price: 38000 },
-        { ticker: 'BA', name: '보잉', price: 230000 }, { ticker: 'GE', name: '제너럴에어로', price: 290000 },
-        { ticker: 'NOW', name: '나이서비스나우', price: 1300000 }, { ticker: 'SPGI', name: 'S&P글로벌', price: 710000 },
-        { ticker: 'UBER', name: '우버', price: 110000 }, { ticker: 'MCD', name: '맥도날드', price: 420000 },
-        { ticker: 'SBUX', name: '스타벅스', price: 130000 }, { ticker: 'NKE', name: '나이키', price: 110000 },
-        { ticker: 'PLTR', name: '팔란티어', price: 65000 }, { ticker: 'COIN', name: '코인베이스', price: 310000 }
-    ];
-
-    // 뉴스 종류 및 주가에 미치는 영향 정의 (positive: 호재, negative: 악재, neutral: 중립)
-    const NEWS_TYPES = [
-        { text: "🚀 어닝 서프라이즈 기록하며 시장 전망치 대폭 상회!", type: "positive", weight: 0.035 },
-        { text: "🔥 신제품 발표 및 대규모 계약 체결로 매수세 집중", type: "positive", weight: 0.025 },
-        { text: "💼 월가 주요 투자은행, 목표 주가 대폭 상향 조정 발표", type: "positive", weight: 0.02 },
-        { text: "⚖️ 글로벌 공급망 불확실성 및 일시적 규제 이슈 발생", type: "negative", weight: -0.025 },
-        { text: "⚠️ 실적 부진 우려 및 기관 투자자들의 차익실현 매물 출회", type: "negative", weight: -0.03 },
-        { text: "📊 시장 전체 관망세 속 평탄한 거래량 유지 중", type: "neutral", weight: 0.0 }
-    ];
-
     let gameState = {
         currentUser: null,
+        stocksList: [],
         marketPrices: {},
         previousPrices: {},
         priceHistories: {},
         stockNews: {},
-        stockNewsType: {},
         watchlist: JSON.parse(localStorage.getItem('stock_watchlist')) || [],
         selectedTicker: null,
         isPlaying: false,
-        stockInterval: null
+        fetchInterval: null
     };
-
-    // 초기값 및 공통 뉴스 세팅
-    US_STOCKS_50.forEach((stock, idx) => {
-        gameState.marketPrices[stock.ticker] = stock.price;
-        gameState.previousPrices[stock.ticker] = stock.price;
-        gameState.priceHistories[stock.ticker] = [stock.price, stock.price];
-        
-        // 종목마다 고유한 초기 뉴스 할당
-        const defaultNews = NEWS_TYPES[idx % NEWS_TYPES.length];
-        gameState.stockNews[stock.ticker] = defaultNews.text;
-        gameState.stockNewsType[stock.ticker] = defaultNews.weight;
-    });
 
     window.addEventListener('DOMContentLoaded', () => {
         const savedSchool = localStorage.getItem('stock_user_school');
@@ -384,7 +335,47 @@
         if (savedNick) document.getElementById('nickname-input').value = savedNick;
 
         fetchLeaderboard();
+        fetchServerStockMarket();
     });
+
+    // 서버 중앙 stock_market 테이블로부터 실시간 주가 동기화 수신
+    async function fetchServerStockMarket() {
+        try {
+            const { data, error } = await db.from('stock_market').select('*').order('ticker');
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                gameState.stocksList = data;
+                data.forEach(s => {
+                    const price = s.price || 1000;
+                    gameState.previousPrices[s.ticker] = s.prev_price || price;
+                    gameState.marketPrices[s.ticker] = price;
+                    gameState.stockNews[s.ticker] = s.news || '정상 거래 진행 중';
+
+                    if (!gameState.priceHistories[s.ticker]) {
+                        gameState.priceHistories[s.ticker] = [s.prev_price || price, price];
+                    } else {
+                        gameState.priceHistories[s.ticker].push(price);
+                        if (gameState.priceHistories[s.ticker].length > 20) {
+                            gameState.priceHistories[s.ticker].shift();
+                        }
+                    }
+                });
+
+                if (gameState.isPlaying) {
+                    renderStockMarket();
+                    updateHUD();
+                    updateWatchlistNewsBanner();
+                    syncUserTotalAssetToServer();
+                    if (document.getElementById('detail-modal').style.display === 'flex') {
+                        renderStockChart(gameState.selectedTicker);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('서버 주가 로드 에러:', err);
+        }
+    }
 
     async function fetchLeaderboard() {
         try {
@@ -421,9 +412,10 @@
         const fullName = `${school} ${grade} ${cls}반 ${nick}`;
 
         try {
-            const { data, error } = await db.from('stock_rankings').select('name, coins, password').eq('name', fullName).maybeSingle();
+            const { data, error } = await db.from('stock_rankings').select('name, coins, password, portfolio').eq('name', fullName).maybeSingle();
 
             let userCash = 1000000;
+            let userPortfolio = {};
 
             if (data) {
                 const inputPwd = prompt(`"${fullName}" 계정입니다. 비밀번호를 입력하세요:`);
@@ -433,20 +425,21 @@
                     return;
                 }
                 userCash = data.coins || 1000000;
+                userPortfolio = data.portfolio || {};
             } else {
                 const newPwd = prompt(`신규 계정입니다. 사용할 비밀번호를 설정하세요:`);
                 if (newPwd === null || !newPwd.trim()) {
                     alert('비밀번호를 입력해야 합니다.');
                     return;
                 }
-                await db.from('stock_rankings').insert({ name: fullName, coins: 1000000, password: newPwd.trim() });
+                await db.from('stock_rankings').insert({ name: fullName, coins: 1000000, password: newPwd.trim(), portfolio: {} });
                 userCash = 1000000;
             }
 
             gameState.currentUser = {
                 name: fullName,
                 cash: userCash,
-                portfolio: {}
+                portfolio: userPortfolio
             };
 
             localStorage.setItem('stock_user_school', school);
@@ -473,58 +466,32 @@
         renderStockMarket();
         updateWatchlistNewsBanner();
 
-        // 매 3초마다 모든 유저에게 완전히 동일한 시간 기반 난수 동기화 및 뉴스 반영 주가 산출
-        gameState.stockInterval = setInterval(() => {
-            if (!gameState.isPlaying) return;
-
-            const syncTimeKey = Math.floor(Date.now() / 3000);
-
-            US_STOCKS_50.forEach((stock, idx) => {
-                let current = gameState.marketPrices[stock.ticker] || stock.price;
-                gameState.previousPrices[stock.ticker] = current;
-
-                // 공통 동기화 난수 알고리즘
-                let pseudoRandom = Math.sin(syncTimeKey + idx * 77) * 10000;
-                let randomVal = (pseudoRandom - Math.floor(pseudoRandom));
-                
-                // 뉴스의 가중치(weight)가 주가 변동에 직접 반영되도록 계산
-                let newsWeight = gameState.stockNewsType[stock.ticker] || 0;
-                let baseVariation = (randomVal * 4 - 1.95) / 100; // -1.95% ~ +2.05%
-                let totalChangeRate = baseVariation + newsWeight;
-
-                let newPrice = Math.max(1000, Math.round(current * (1 + totalChangeRate)));
-                if (isNaN(newPrice)) newPrice = stock.price; // NaN 방지 안전장치
-
-                gameState.marketPrices[stock.ticker] = newPrice;
-                
-                if (!gameState.priceHistories[stock.ticker]) gameState.priceHistories[stock.ticker] = [];
-                gameState.priceHistories[stock.ticker].push(newPrice);
-                if (gameState.priceHistories[stock.ticker].length > 20) {
-                    gameState.priceHistories[stock.ticker].shift();
-                }
-
-                // 일정 확률로 종목마다 새로운 뉴스로 교체 및 가격 반영 강화
-                if (Math.abs(Math.sin(syncTimeKey + idx)) < 0.15) {
-                    const newNewsObj = NEWS_TYPES[Math.floor(Math.abs(pseudoRandom * 10) % NEWS_TYPES.length)];
-                    gameState.stockNews[stock.ticker] = newNewsObj.text;
-                    gameState.stockNewsType[stock.ticker] = newNewsObj.weight;
-                }
-            });
-
-            renderStockMarket();
-            updateHUD();
-            updateWatchlistNewsBanner();
-            if (document.getElementById('detail-modal').style.display === 'flex') {
-                renderStockChart(gameState.selectedTicker);
-            }
+        // 3초마다 서버 DB 주가 조회 수신
+        gameState.fetchInterval = setInterval(() => {
+            fetchServerStockMarket();
+            fetchLeaderboard();
         }, 3000);
+    }
+
+    // 서버 DB 변동 시 유저 총 평가 자산 자동 업데이트
+    async function syncUserTotalAssetToServer() {
+        if (!gameState.currentUser) return;
+        const totalAsset = calculateTotalAsset();
+        try {
+            await db.from('stock_rankings').update({ 
+                coins: totalAsset,
+                portfolio: gameState.currentUser.portfolio
+            }).eq('name', gameState.currentUser.name);
+        } catch (err) {
+            console.error('서버 자산 동기화 실패:', err);
+        }
     }
 
     function renderStockMarket() {
         const grid = document.getElementById('stock-market-grid');
         let html = '';
 
-        US_STOCKS_50.forEach(stock => {
+        gameState.stocksList.forEach(stock => {
             const price = gameState.marketPrices[stock.ticker] || stock.price;
             const prevPrice = gameState.previousPrices[stock.ticker] || price;
             const diff = price - prevPrice;
@@ -571,7 +538,7 @@
         updateWatchlistNewsBanner();
     }
 
-    function buyStock(ticker) {
+    async function buyStock(ticker) {
         const qtyInput = document.getElementById(`input-${ticker}`);
         const qty = parseInt(qtyInput.value) || 1;
         const price = gameState.marketPrices[ticker];
@@ -584,11 +551,13 @@
 
         gameState.currentUser.cash -= totalCost;
         gameState.currentUser.portfolio[ticker] = (gameState.currentUser.portfolio[ticker] || 0) + qty;
+        
+        await syncUserTotalAssetToServer();
         updateHUD();
         renderStockMarket();
     }
 
-    function sellStock(ticker) {
+    async function sellStock(ticker) {
         const qtyInput = document.getElementById(`input-${ticker}`);
         const qty = parseInt(qtyInput.value) || 1;
         const shares = gameState.currentUser.portfolio[ticker] || 0;
@@ -604,13 +573,15 @@
         if (gameState.currentUser.portfolio[ticker] === 0) {
             delete gameState.currentUser.portfolio[ticker];
         }
+
+        await syncUserTotalAssetToServer();
         updateHUD();
         renderStockMarket();
     }
 
     function openDetailModal(ticker) {
         gameState.selectedTicker = ticker;
-        const stockObj = US_STOCKS_50.find(s => s.ticker === ticker);
+        const stockObj = gameState.stocksList.find(s => s.ticker === ticker);
         const price = gameState.marketPrices[ticker];
         const prevPrice = gameState.previousPrices[ticker];
         const diff = price - prevPrice;
@@ -671,6 +642,7 @@
 
         gameState.currentUser.cash -= maxQty * price;
         gameState.currentUser.portfolio[ticker] = (gameState.currentUser.portfolio[ticker] || 0) + maxQty;
+        syncUserTotalAssetToServer();
         updateHUD();
         renderStockMarket();
         openDetailModal(ticker);
@@ -688,6 +660,7 @@
         const price = gameState.marketPrices[ticker];
         gameState.currentUser.cash += myShares * price;
         delete gameState.currentUser.portfolio[ticker];
+        syncUserTotalAssetToServer();
         updateHUD();
         renderStockMarket();
         openDetailModal(ticker);
@@ -714,18 +687,20 @@
         }
 
         const firstTicker = gameState.watchlist[0];
-        const stockObj = US_STOCKS_50.find(s => s.ticker === firstTicker);
-        const currentNews = gameState.stockNews[firstTicker] || "시장 동향 주시 중";
+        const stockObj = gameState.stocksList.find(s => s.ticker === firstTicker);
+        const currentNews = gameState.stockNews[firstTicker] || "정상 거래 진행 중";
 
-        banner.innerHTML = `<span>🔥 [관심종목 속보] <b>${stockObj.name} (${firstTicker})</b>: ${currentNews}</span>`;
+        if (stockObj) {
+            banner.innerHTML = `<span>🔥 [관심종목 속보] <b>${stockObj.name} (${firstTicker})</b>: ${currentNews}</span>`;
+        }
     }
 
     function generateNewsModalContent() {
         const container = document.getElementById('news-container');
         let html = '';
 
-        US_STOCKS_50.forEach(stock => {
-            const price = gameState.marketPrices[stock.ticker];
+        gameState.stocksList.forEach(stock => {
+            const price = gameState.marketPrices[stock.ticker] || stock.price;
             const newsText = gameState.stockNews[stock.ticker] || "정상 거래 진행 중";
             html += `
                 <div class="news-card-item">
@@ -741,16 +716,11 @@
         if (!confirm('거래를 종료하고 현재 총 자산을 저장하시겠습니까?')) return;
 
         gameState.isPlaying = false;
-        clearInterval(gameState.stockInterval);
+        clearInterval(gameState.fetchInterval);
 
         const totalAsset = calculateTotalAsset();
-
-        try {
-            await db.from('stock_rankings').update({ coins: totalAsset }).eq('name', gameState.currentUser.name);
-            fetchLeaderboard();
-        } catch (err) {
-            console.error('자산 저장 실패:', err);
-        }
+        await syncUserTotalAssetToServer();
+        fetchLeaderboard();
 
         alert(`거래 종료!\n최종 총 자산: ${totalAsset.toLocaleString()} 원이 주식 랭킹에 반영되었습니다.`);
 
@@ -780,9 +750,10 @@
             const shares = gameState.currentUser.portfolio[ticker];
             if (shares > 0) {
                 hasStock = true;
-                const stockObj = US_STOCKS_50.find(s => s.ticker === ticker);
-                const curPrice = gameState.marketPrices[ticker];
-                html += `<div style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; font-size: 14.5px; color: #1e293b;">${stockObj.name} (${ticker}): ${shares}주 (평가액: ${(shares * curPrice).toLocaleString()}원)</div>`;
+                const stockObj = gameState.stocksList.find(s => s.ticker === ticker);
+                const curPrice = gameState.marketPrices[ticker] || 0;
+                const name = stockObj ? stockObj.name : ticker;
+                html += `<div style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; font-size: 14.5px; color: #1e293b;">${name} (${ticker}): ${shares}주 (평가액: ${(shares * curPrice).toLocaleString()}원)</div>`;
             }
         }
 
