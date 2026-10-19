@@ -223,7 +223,9 @@
             ⚡ 서버 중앙 동기화 시세 DB (24시간 오프라인 실시간 반영)
         </div>
 
-        <div class="stock-grid" id="stock-market-grid"></div>
+        <div class="stock-grid" id="stock-market-grid">
+            <div style="color:#94a3b8; padding:20px;">주식 목록을 불러오는 중...</div>
+        </div>
     </div>
 
     <div class="bottom-nav-bar" id="bottom-bar">
@@ -323,7 +325,7 @@
         fetchInterval: null
     };
 
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
         const savedSchool = localStorage.getItem('stock_user_school');
         const savedGrade = localStorage.getItem('stock_user_grade');
         const savedClass = localStorage.getItem('stock_user_class');
@@ -334,8 +336,8 @@
         if (savedClass) document.getElementById('class-input').value = savedClass;
         if (savedNick) document.getElementById('nickname-input').value = savedNick;
 
+        await fetchServerStockMarket();
         fetchLeaderboard();
-        fetchServerStockMarket();
     });
 
     // 서버 중앙 stock_market 테이블로부터 실시간 주가 동기화 수신
@@ -362,10 +364,10 @@
                     }
                 });
 
+                renderStockMarket();
+                updateWatchlistNewsBanner();
                 if (gameState.isPlaying) {
-                    renderStockMarket();
                     updateHUD();
-                    updateWatchlistNewsBanner();
                     syncUserTotalAssetToServer();
                     if (document.getElementById('detail-modal').style.display === 'flex') {
                         renderStockChart(gameState.selectedTicker);
@@ -412,10 +414,11 @@
         const fullName = `${school} ${grade} ${cls}반 ${nick}`;
 
         try {
-            const { data, error } = await db.from('stock_rankings').select('name, coins, password, portfolio').eq('name', fullName).maybeSingle();
-
+            // portfolio 컬럼이 없을 경우를 대비해 예외 안전 처리
             let userCash = 1000000;
             let userPortfolio = {};
+
+            const { data, error } = await db.from('stock_rankings').select('name, coins, password, portfolio').eq('name', fullName).maybeSingle();
 
             if (data) {
                 const inputPwd = prompt(`"${fullName}" 계정입니다. 비밀번호를 입력하세요:`);
@@ -467,8 +470,9 @@
         updateWatchlistNewsBanner();
 
         // 3초마다 서버 DB 주가 조회 수신
-        gameState.fetchInterval = setInterval(() => {
-            fetchServerStockMarket();
+        if (gameState.fetchInterval) clearInterval(gameState.fetchInterval);
+        gameState.fetchInterval = setInterval(async () => {
+            await fetchServerStockMarket();
             fetchLeaderboard();
         }, 3000);
     }
@@ -489,16 +493,20 @@
 
     function renderStockMarket() {
         const grid = document.getElementById('stock-market-grid');
-        let html = '';
+        if (!gameState.stocksList || gameState.stocksList.length === 0) {
+            grid.innerHTML = '<div style="color:#94a3b8; padding:20px;">등록된 주식 종목이 없습니다. Supabase에 초기 데이터를 입력했는지 확인해 주세요.</div>';
+            return;
+        }
 
+        let html = '';
         gameState.stocksList.forEach(stock => {
-            const price = gameState.marketPrices[stock.ticker] || stock.price;
-            const prevPrice = gameState.previousPrices[stock.ticker] || price;
+            const price = gameState.marketPrices[stock.ticker] || stock.price || 1000;
+            const prevPrice = gameState.previousPrices[stock.ticker] || stock.prev_price || price;
             const diff = price - prevPrice;
             const diffPercent = prevPrice > 0 ? ((diff / prevPrice) * 100).toFixed(2) : '0.00';
             const isUp = diff >= 0;
             const dollarPrice = (price / EXCHANGE_RATE).toFixed(2);
-            const myShares = gameState.currentUser.portfolio[stock.ticker] || 0;
+            const myShares = gameState.currentUser && gameState.currentUser.portfolio ? (gameState.currentUser.portfolio[stock.ticker] || 0) : 0;
             const isStarred = gameState.watchlist.includes(stock.ticker);
 
             html += `
@@ -539,6 +547,7 @@
     }
 
     async function buyStock(ticker) {
+        if (!gameState.currentUser) { alert('로그인 후 이용해주세요.'); return; }
         const qtyInput = document.getElementById(`input-${ticker}`);
         const qty = parseInt(qtyInput.value) || 1;
         const price = gameState.marketPrices[ticker];
@@ -550,6 +559,7 @@
         }
 
         gameState.currentUser.cash -= totalCost;
+        if (!gameState.currentUser.portfolio) gameState.currentUser.portfolio = {};
         gameState.currentUser.portfolio[ticker] = (gameState.currentUser.portfolio[ticker] || 0) + qty;
         
         await syncUserTotalAssetToServer();
@@ -558,6 +568,7 @@
     }
 
     async function sellStock(ticker) {
+        if (!gameState.currentUser) { alert('로그인 후 이용해주세요.'); return; }
         const qtyInput = document.getElementById(`input-${ticker}`);
         const qty = parseInt(qtyInput.value) || 1;
         const shares = gameState.currentUser.portfolio[ticker] || 0;
@@ -582,6 +593,8 @@
     function openDetailModal(ticker) {
         gameState.selectedTicker = ticker;
         const stockObj = gameState.stocksList.find(s => s.ticker === ticker);
+        if (!stockObj) return;
+
         const price = gameState.marketPrices[ticker];
         const prevPrice = gameState.previousPrices[ticker];
         const diff = price - prevPrice;
@@ -599,7 +612,7 @@
         document.getElementById('detail-stock-change').innerText = `${isUp ? '▲' : '▼'} ${Math.abs(diff).toLocaleString()} 원 (${isUp ? '+' : ''}${diffPercent}%)`;
         document.getElementById('detail-stock-change').className = isUp ? 'price-up' : 'price-down';
         
-        const myShares = gameState.currentUser.portfolio[ticker] || 0;
+        const myShares = gameState.currentUser && gameState.currentUser.portfolio ? (gameState.currentUser.portfolio[ticker] || 0) : 0;
         document.getElementById('detail-my-holding').innerText = `보유 수량: ${myShares}주 (평가금액: ${(myShares * price).toLocaleString()}원)`;
 
         renderStockChart(ticker);
@@ -629,7 +642,8 @@
         ctx.stroke();
     }
 
-    function allBuyStock() {
+    async function allBuyStock() {
+        if (!gameState.currentUser) return;
         const ticker = gameState.selectedTicker;
         const price = gameState.marketPrices[ticker];
         const cash = gameState.currentUser.cash;
@@ -641,14 +655,16 @@
         }
 
         gameState.currentUser.cash -= maxQty * price;
+        if (!gameState.currentUser.portfolio) gameState.currentUser.portfolio = {};
         gameState.currentUser.portfolio[ticker] = (gameState.currentUser.portfolio[ticker] || 0) + maxQty;
-        syncUserTotalAssetToServer();
+        await syncUserTotalAssetToServer();
         updateHUD();
         renderStockMarket();
         openDetailModal(ticker);
     }
 
-    function allSellStock() {
+    async function allSellStock() {
+        if (!gameState.currentUser) return;
         const ticker = gameState.selectedTicker;
         const myShares = gameState.currentUser.portfolio[ticker] || 0;
 
@@ -660,13 +676,14 @@
         const price = gameState.marketPrices[ticker];
         gameState.currentUser.cash += myShares * price;
         delete gameState.currentUser.portfolio[ticker];
-        syncUserTotalAssetToServer();
+        await syncUserTotalAssetToServer();
         updateHUD();
         renderStockMarket();
         openDetailModal(ticker);
     }
 
     function calculateTotalAsset() {
+        if (!gameState.currentUser) return 0;
         let stockValue = 0;
         for (let ticker in gameState.currentUser.portfolio) {
             stockValue += (gameState.currentUser.portfolio[ticker] || 0) * (gameState.marketPrices[ticker] || 0);
@@ -675,6 +692,7 @@
     }
 
     function updateHUD() {
+        if (!gameState.currentUser) return;
         document.getElementById('hud-cash').innerText = gameState.currentUser.cash.toLocaleString();
         document.getElementById('hud-total-asset').innerText = calculateTotalAsset().toLocaleString();
     }
@@ -697,8 +715,12 @@
 
     function generateNewsModalContent() {
         const container = document.getElementById('news-container');
-        let html = '';
+        if (!gameState.stocksList || gameState.stocksList.length === 0) {
+            container.innerHTML = '뉴스가 없습니다.';
+            return;
+        }
 
+        let html = '';
         gameState.stocksList.forEach(stock => {
             const price = gameState.marketPrices[stock.ticker] || stock.price;
             const newsText = gameState.stockNews[stock.ticker] || "정상 거래 진행 중";
@@ -716,7 +738,7 @@
         if (!confirm('거래를 종료하고 현재 총 자산을 저장하시겠습니까?')) return;
 
         gameState.isPlaying = false;
-        clearInterval(gameState.fetchInterval);
+        if (gameState.fetchInterval) clearInterval(gameState.fetchInterval);
 
         const totalAsset = calculateTotalAsset();
         await syncUserTotalAssetToServer();
@@ -762,8 +784,6 @@
         }
         list.innerHTML = html;
     }
-
-    fetchLeaderboard();
 </script>
 </body>
 </html>
