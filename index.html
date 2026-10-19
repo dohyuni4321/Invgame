@@ -220,7 +220,7 @@
         </div>
 
         <div style="font-size: 15px; font-weight: bold; margin-bottom: 12px; color: #94a3b8;">
-            ⚡ 서버 중앙 동기화 시세 DB (24시간 오프라인 실시간 반영)
+            ⚡ 실시간 연동 주식 시장 (3초마다 자동 갱신)
         </div>
 
         <div class="stock-grid" id="stock-market-grid">
@@ -263,7 +263,7 @@
 <div id="news-modal" class="modal">
     <div class="modal-content">
         <button class="modal-close" onclick="closeModal('news-modal')">✖</button>
-        <h2 style="font-size: 22px; font-weight: 900; color: #0f172a;">📰 서버 동기화 증권 실시간 뉴스판</h2>
+        <h2 style="font-size: 22px; font-weight: 900; color: #0f172a;">📰 증권 실시간 뉴스판</h2>
         <div class="modal-body-scroll" id="news-container"></div>
     </div>
 </div>
@@ -275,9 +275,8 @@
         <h2 style="font-size: 22px; font-weight: 900; color: #0f172a;">📖 주식 시뮬레이터 규칙 안내</h2>
         <div class="modal-body-scroll">
             <div class="guide-box">
-                <b>1. 서버 데이터베이스 기반 자동 시세 변동</b><br>
-                - 주식 시세는 서버(Supabase DB)에서 24시간 계속 변동합니다.<br>
-                - 컴퓨터나 웹페이지를 꺼두어도 보유 주식 가치 및 랭킹이 실시간으로 변동됩니다.<br><br>
+                <b>1. 실시간 시세 변동</b><br>
+                - 주식 시세는 3초마다 자동으로 변동하여 Supabase DB에 반영됩니다.<br><br>
                 <b>2. 뉴스 가격 영향력 연동</b><br>
                 - 뉴스 내용(호재/악재)에 따라 해당 주식의 실제 등락 가중치가 변경됩니다.
             </div>
@@ -325,6 +324,16 @@
         fetchInterval: null
     };
 
+    const newsArr = [
+        '🚀 어닝 서프라이즈 기록하며 시장 전망치 대폭 상회!',
+        '🔥 신제품 발표 및 대규모 계약 체결로 매수세 집중',
+        '💼 월가 주요 투자은행, 목표 주가 대폭 상향 조정 발표',
+        '⚖️ 글로벌 공급망 불확실성 및 일시적 규제 이슈 발생',
+        '⚠️ 실적 부진 우려 및 기관 투자자들의 차익실현 매물 출회',
+        '📊 시장 전체 관망세 속 평탄한 거래량 유지 중'
+    ];
+    const weightArr = [0.035, 0.025, 0.020, -0.025, -0.030, 0.0];
+
     window.addEventListener('DOMContentLoaded', async () => {
         const savedSchool = localStorage.getItem('stock_user_school');
         const savedGrade = localStorage.getItem('stock_user_grade');
@@ -356,9 +365,11 @@
                     if (!gameState.priceHistories[s.ticker]) {
                         gameState.priceHistories[s.ticker] = [s.prev_price || price, price];
                     } else {
-                        gameState.priceHistories[s.ticker].push(price);
-                        if (gameState.priceHistories[s.ticker].length > 20) {
-                            gameState.priceHistories[s.ticker].shift();
+                        if (gameState.priceHistories[s.ticker][gameState.priceHistories[s.ticker].length - 1] !== price) {
+                            gameState.priceHistories[s.ticker].push(price);
+                            if (gameState.priceHistories[s.ticker].length > 20) {
+                                gameState.priceHistories[s.ticker].shift();
+                            }
                         }
                     }
                 });
@@ -397,6 +408,53 @@
                 document.getElementById('global-total-asset').innerText = `${totalAssetSum.toLocaleString()} 원`;
             }
         } catch (err) { console.error(err); }
+    }
+
+    // 클라이언트 프론트엔드에서 3초마다 주가 변동 계산 및 DB 동기화
+    async function updateMarketFromClient() {
+        if (!gameState.stocksList || gameState.stocksList.length === 0) return;
+
+        for (let stock of gameState.stocksList) {
+            const randomVal = Math.random();
+            const baseVar = (randomVal * 0.04) - 0.0195;
+            const weight = stock.news_weight || 0.0;
+            const totalRate = baseVar + weight;
+            const currentPrice = gameState.marketPrices[stock.ticker] || stock.price || 1000;
+            const newPrice = Math.max(1000, Math.round(currentPrice * (1.0 + totalRate)));
+
+            let updatedNews = stock.news;
+            let updatedWeight = stock.news_weight;
+
+            if (Math.random() < 0.15) {
+                const idx = Math.floor(Math.random() * newsArr.length);
+                updatedNews = newsArr[idx];
+                updatedWeight = weightArr[idx];
+            }
+
+            gameState.previousPrices[stock.ticker] = currentPrice;
+            gameState.marketPrices[stock.ticker] = newPrice;
+            stock.price = newPrice;
+            stock.prev_price = currentPrice;
+            stock.news = updatedNews;
+            stock.news_weight = updatedWeight;
+
+            // Supabase DB에 실시간 반영
+            await db.from('stock_market').update({
+                price: newPrice,
+                prev_price: currentPrice,
+                news: updatedNews,
+                news_weight: updatedWeight,
+                updated_at: new Date().toISOString()
+            }).eq('ticker', stock.ticker);
+        }
+
+        renderStockMarket();
+        updateWatchlistNewsBanner();
+        if (gameState.isPlaying) {
+            updateHUD();
+            syncUserTotalAssetToServer();
+        }
+        fetchLeaderboard();
     }
 
     async function verifyAndStartGame() {
@@ -476,10 +534,10 @@
         updateWatchlistNewsBanner();
         updateHUD();
 
+        // 3초마다 프론트엔드에서 주가를 직접 갱신 및 서버 동기화
         if (gameState.fetchInterval) clearInterval(gameState.fetchInterval);
         gameState.fetchInterval = setInterval(async () => {
-            await fetchServerStockMarket();
-            fetchLeaderboard();
+            await updateMarketFromClient();
         }, 3000);
     }
 
