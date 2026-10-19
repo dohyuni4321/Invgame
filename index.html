@@ -425,20 +425,16 @@
                     alert('❌ 비밀번호 불일치!');
                     return;
                 }
-                userCash = data.coins || 1000000;
                 userPortfolio = data.portfolio || {};
-
-                // 만약 기존 코인(coins)에 주식 평가금액이 이미 포함되어 저장된 경우를 고려하여 예수금 정산
+                
+                let totalCoins = data.coins || 1000000;
                 let stockVal = 0;
                 for (let ticker in userPortfolio) {
                     const shares = userPortfolio[ticker] || 0;
                     const curPrice = gameState.marketPrices[ticker] || 1000;
                     stockVal += shares * curPrice;
                 }
-                // 예수금 = 총 자산 - 보유 주식 평가액 (최소 0원 이상 보장)
-                if (userCash >= stockVal) {
-                    userCash = userCash - stockVal;
-                }
+                userCash = Math.max(0, totalCoins - stockVal);
             } else {
                 const newPwd = prompt(`신규 계정입니다. 사용할 비밀번호를 설정하세요:`);
                 if (newPwd === null || !newPwd.trim()) {
@@ -487,7 +483,6 @@
         }, 3000);
     }
 
-    // 총 자산(현금 + 보유 주식 평가액) 계산
     function calculateTotalAsset() {
         if (!gameState.currentUser) return 0;
         let stockValue = 0;
@@ -499,7 +494,6 @@
         return gameState.currentUser.cash + stockValue;
     }
 
-    // 서버로 유저 총 자산 및 포트폴리오 동기화 반영
     async function syncUserTotalAssetToServer() {
         if (!gameState.currentUser) return;
         const totalAsset = calculateTotalAsset();
