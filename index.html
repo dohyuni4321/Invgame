@@ -9,13 +9,17 @@
     <style>
         :root {
             --bg-color: #0f172a;
-            --primary: #22c55e;
-            --primary-dark: #16a34a;
+            --primary: #ef4444; /* 상승 빨간색 */
+            --primary-dark: #dc2626;
+            --danger: #3b82f6;   /* 하락 파란색 */
             --accent: #f59e0b;
-            --danger: #ef4444;
             --card-bg: #ffffff;
             --text: #0f172a;
         }
+
+        /* 📈 한국 표준 색상 적용: 상승 = 빨강, 하락 = 파랑 */
+        .price-up { color: #ef4444 !important; }
+        .price-down { color: #3b82f6 !important; }
 
         * { box-sizing: border-box; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
         body { background: #1e293b; color: var(--text); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; transition: background 0.3s; touch-action: manipulation; }
@@ -26,10 +30,10 @@
             transition: all 0.3s; position: relative;
         }
 
-        /* 📢 어드민 공지사항 배너 (랭킹판 위) */
+        /* 📢 공지사항 배너 (메인 & 주식 화면 양쪽 공용) */
         .admin-notice-banner {
-            background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; padding: 16px 25px;
-            font-weight: 800; font-size: 15px; display: none; align-items: center; gap: 12px;
+            background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; padding: 14px 25px;
+            font-weight: 800; font-size: 14.5px; display: none; align-items: center; gap: 12px;
             border-bottom: 2px solid #6366f1; box-shadow: inset 0 -2px 5px rgba(0,0,0,0.2);
         }
 
@@ -76,7 +80,7 @@
             display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 700;
         }
         .rank-num { width: 30px; color: #64748b; font-weight: 900; font-size: 18px; }
-        .rank-score { color: #16a34a; font-weight: 800; }
+        .rank-score { color: #ef4444; font-weight: 800; }
 
         .bottom-nav-bar {
             background: #f1f5f9; border-top: 2px solid #e2e8f0; padding: 20px 30px;
@@ -124,15 +128,13 @@
         .stock-name { font-size: 16px; font-weight: 900; color: #f8fafc; }
         .stock-ticker { font-size: 12px; color: #94a3b8; background: #0f172a; padding: 2px 6px; border-radius: 4px; }
         .stock-price { font-size: 20px; font-weight: 900; margin-bottom: 4px; }
-        .price-up { color: #22c55e; }
-        .price-down { color: #ef4444; }
         .stock-change { font-size: 12px; font-weight: bold; margin-bottom: 8px; }
 
         .stock-actions { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
         .stock-input { width: 55px; padding: 6px; background: #0f172a; border: 1px solid #475569; color: white; border-radius: 6px; text-align: center; font-weight: bold; font-size: 13px; }
         .btn-trade { padding: 6px 12px; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; }
-        .btn-buy { background: #22c55e; color: white; }
-        .btn-sell { background: #ef4444; color: white; }
+        .btn-buy { background: #ef4444; color: white; }
+        .btn-sell { background: #3b82f6; color: white; }
         .btn-star { background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b; }
         .btn-star.active { color: #facc15; }
 
@@ -172,10 +174,10 @@
 <body>
 
 <div class="container" id="main-container">
-    <!-- 📢 어드민 공지 배너 (랭킹판 상단 / 주식 화면 진입 시 자동 숨김) -->
-    <div id="admin-notice-banner" class="admin-notice-banner">
-        <span style="font-size: 22px;">📢</span>
-        <div id="admin-notice-text">공지사항 내용이 여기에 표시됩니다.</div>
+    <!-- 📢 어드민 공지 배너 (메인 화면용) -->
+    <div id="admin-notice-banner-main" class="admin-notice-banner">
+        <span style="font-size: 20px;">📢</span>
+        <div id="admin-notice-text-main">공지사항 내용</div>
     </div>
 
     <div class="top-user-bar" id="top-user-bar">
@@ -221,6 +223,12 @@
     </div>
 
     <div id="game-screen">
+        <!-- 📢 어드민 공지 배너 (주식 거래 화면용) -->
+        <div id="admin-notice-banner-game" class="admin-notice-banner" style="margin-bottom: 20px; border-radius: 12px; border: 1px solid #6366f1;">
+            <span style="font-size: 20px;">📢</span>
+            <div id="admin-notice-text-game">공지사항 내용</div>
+        </div>
+
         <div class="game-hud">
             <div class="hud-item">👤 투자자: <span id="hud-username" style="color:#facc15;">-</span></div>
             <div class="hud-item">💵 예수금: <span id="hud-cash" style="color:#4ade80;">1,000,000</span> 원</div>
@@ -263,8 +271,8 @@
         <canvas id="stock-chart" width="540" height="180"></canvas>
         <div style="margin: 12px 0; font-size: 15px; color: #cbd5e1;" id="detail-my-holding">보유 수량: 0주</div>
         <div style="display: flex; gap: 10px;">
-            <button style="flex:1; padding: 12px; background: #22c55e; color: white; font-weight: bold; border:none; border-radius: 8px; cursor: pointer;" onclick="allBuyStock()">전체 매수 (올인)</button>
-            <button style="flex:1; padding: 12px; background: #ef4444; color: white; font-weight: bold; border:none; border-radius: 8px; cursor: pointer;" onclick="allSellStock()">전체 매도</button>
+            <button style="flex:1; padding: 12px; background: #ef4444; color: white; font-weight: bold; border:none; border-radius: 8px; cursor: pointer;" onclick="allBuyStock()">전체 매수 (올인)</button>
+            <button style="flex:1; padding: 12px; background: #3b82f6; color: white; font-weight: bold; border:none; border-radius: 8px; cursor: pointer;" onclick="allSellStock()">전체 매도</button>
         </div>
     </div>
 </div>
@@ -355,29 +363,38 @@
         }, 1000);
     });
 
-    // 📢 공지사항 불러오기 및 노출 제어 (주식 화면에서는 숨김)
+    // 📢 공지사항 불러오기 (메인 & 주식 화면 양쪽에 동시 노출)
     async function fetchAdminNotice() {
         try {
             const { data } = await db.from('market_config').select('notice_text, notice_expire_at').eq('id', 1).maybeSingle();
-            const banner = document.getElementById('admin-notice-banner');
+            const bannerMain = document.getElementById('admin-notice-banner-main');
+            const bannerGame = document.getElementById('admin-notice-banner-game');
 
-            // 1. 주식 게임 화면 진입 중이거나 공지 내용이 없으면 숨김
-            if (!data || !data.notice_text || gameState.isPlaying) {
-                banner.style.display = 'none';
+            if (!data || !data.notice_text) {
+                bannerMain.style.display = 'none';
+                bannerGame.style.display = 'none';
                 return;
             }
 
-            // 2. 지속 시간(만료 시간) 체크
             if (data.notice_expire_at) {
-                const expireTime = new Date(data.notice_expire_at).getTime();
-                if (Date.now() > expireTime) {
-                    banner.style.display = 'none';
+                if (Date.now() > new Date(data.notice_expire_at).getTime()) {
+                    bannerMain.style.display = 'none';
+                    bannerGame.style.display = 'none';
                     return;
                 }
             }
 
-            document.getElementById('admin-notice-text').innerText = data.notice_text;
-            banner.style.display = 'flex';
+            document.getElementById('admin-notice-text-main').innerText = data.notice_text;
+            document.getElementById('admin-notice-text-game').innerText = data.notice_text;
+
+            // 주식 거래 중일 때는 메인 배너 숨기고, 게임 배너 표시
+            if (gameState.isPlaying) {
+                bannerMain.style.display = 'none';
+                bannerGame.style.display = 'flex';
+            } else {
+                bannerMain.style.display = 'flex';
+                bannerGame.style.display = 'none';
+            }
         } catch (err) {
             console.error('공지 로드 에러:', err);
         }
@@ -432,7 +449,7 @@
 
                 let listHtml = '';
                 for (let i = 1; i < Math.min(data.length, 10); i++) {
-                    listHtml += `<div class="rank-item"><span class="rank-num">${i + 1}</span><span>${data[i].name}</span><span class="rank-score">${data[i].coins.toLocaleString()} 원</span></div>`;
+                    listHtml += `<div class="rank-item"><span class="rank-num">${i + 1}</span><span>${data[i].name}</span><span class="rank-score" style="color:#ef4444;">${data[i].coins.toLocaleString()} 원</span></div>`;
                 }
                 document.getElementById('rank-list').innerHTML = listHtml || '<div style="grid-column:span 2; text-align:center; color:#94a3b8; padding:10px;">기록이 없습니다.</div>';
 
@@ -487,7 +504,6 @@
 
     function startGameSession() {
         gameState.isPlaying = true;
-        document.getElementById('admin-notice-banner').style.display = 'none'; // 👈 주식 화면 진입 시 공지 숨김
         document.getElementById('top-user-bar').style.display = 'none';
         document.getElementById('main-dashboard').style.display = 'none';
         document.getElementById('bottom-bar').style.display = 'none';
@@ -497,6 +513,7 @@
         renderStockMarket();
         updateWatchlistNewsBanner();
         updateHUD();
+        fetchAdminNotice();
     }
 
     function calculateTotalAsset() {
@@ -590,9 +607,16 @@
         const stock = gameState.stocksList.find(s => s.ticker === ticker);
         if (!stock) return;
         const price = gameState.marketPrices[ticker];
+        const prevPrice = gameState.previousPrices[ticker];
+        const isUp = (price - prevPrice) >= 0;
+
         document.getElementById('detail-stock-title').innerText = stock.name;
         document.getElementById('detail-stock-sub').innerText = `티커: ${ticker}`;
-        document.getElementById('detail-stock-price').innerText = `${price.toLocaleString()} 원`;
+        
+        const priceEl = document.getElementById('detail-stock-price');
+        priceEl.innerText = `${price.toLocaleString()} 원`;
+        priceEl.className = isUp ? 'price-up' : 'price-down';
+
         document.getElementById('detail-my-holding').innerText = `보유 수량: ${gameState.currentUser?.portfolio?.[ticker] || 0}주`;
         renderStockChart(ticker);
         openModal('detail-modal');
@@ -603,7 +627,7 @@
         const ctx = canvas.getContext('2d');
         const history = gameState.priceHistories[ticker] || [1000, 1000];
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 3; ctx.beginPath();
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3; ctx.beginPath();
         const max = Math.max(...history), min = Math.min(...history);
         const stepX = canvas.width / (history.length - 1 || 1);
         history.forEach((val, i) => {
@@ -662,7 +686,7 @@
         gameState.isPlaying = false;
         await syncUserTotalAssetToServer();
         fetchLeaderboard();
-        fetchAdminNotice(); // 👈 메인 화면으로 돌아오면 공지 다시 표시
+        fetchAdminNotice();
 
         document.getElementById('top-user-bar').style.display = 'flex';
         document.getElementById('game-screen').style.display = 'none';
