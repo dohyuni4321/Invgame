@@ -276,6 +276,22 @@
     </div>
 </div>
 
+<!-- 🎁 주식 수신 알림 팝업 모달 -->
+<div id="gift-received-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.85); backdrop-filter:blur(5px); z-index:99999; justify-content:center; align-items:center;">
+    <div style="background:#1e293b; border:3px solid #facc15; border-radius:24px; padding:35px; width:100%; max-width:420px; text-align:center; color:white; position:relative; box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+        <!-- 우측 상단 수락 버튼 -->
+        <button onclick="closeGiftReceivedModal()" style="position:absolute; top:20px; right:20px; background:#22c55e; color:white; border:none; padding:8px 18px; border-radius:8px; font-weight:900; font-size:14px; cursor:pointer; box-shadow:0 4px 10px rgba(34,197,94,0.4);">수락</button>
+        
+        <div style="font-size: 60px; margin-bottom: 15px; animation: bounce 1.5s infinite;">🎁</div>
+        <h2 style="font-size: 24px; font-weight: 900; color: #facc15; margin-bottom: 20px;">선물을 받았습니다!</h2>
+        
+        <div style="background:#0f172a; border:1px solid #334155; border-radius:14px; padding:20px; margin-top:10px;">
+            <div id="received-stock-name" style="font-size: 18px; font-weight: 900; color: #38bdf8; margin-bottom: 6px;">엔비디아 (NVDA)</div>
+            <div id="received-stock-qty" style="font-size: 22px; font-weight: 900; color: #4ade80;">+10주</div>
+        </div>
+    </div>
+</div>
+
 <!-- 상세 보기 모달 -->
 <div id="detail-modal" class="modal">
     <div class="modal-content" style="color: #f3f4f6; background: #1e293b;">
@@ -347,7 +363,7 @@
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let gameState = {
-        currentUser: null, // portfolio: { 'NVDA': { shares: 10, avgPrice: 120000 } }
+        currentUser: null,
         stocksList: [],
         marketPrices: {},
         previousPrices: {},
@@ -355,7 +371,8 @@
         stockNews: {},
         watchlist: JSON.parse(localStorage.getItem('stock_watchlist')) || [],
         selectedTicker: null,
-        isPlaying: false
+        isPlaying: false,
+        lastKnownPortfolio: {}
     };
 
     window.addEventListener('DOMContentLoaded', async () => {
@@ -377,8 +394,67 @@
             await fetchServerStockMarket();
             fetchLeaderboard();
             fetchAdminNotice();
+            if (gameState.isPlaying) {
+                checkIncomingGifts();
+            }
         }, 1000);
     });
+
+    // 🎁 서버에서 내 주식 포트폴리오 변동(선물 수신) 감지
+    async function checkIncomingGifts() {
+        if (!gameState.currentUser) return;
+        try {
+            const { data } = await db.from('stock_rankings').select('portfolio').eq('name', gameState.currentUser.name).maybeSingle();
+            if (!data || !data.portfolio) return;
+
+            const serverPort = data.portfolio;
+            
+            // 최초 비교 세팅
+            if (Object.keys(gameState.lastKnownPortfolio).length === 0) {
+                gameState.lastKnownPortfolio = JSON.parse(JSON.stringify(serverPort));
+                return;
+            }
+
+            // 각 종목별 수량 증가 여부 확인
+            for (let ticker in serverPort) {
+                const item = serverPort[ticker];
+                const sNew = (typeof item === 'number') ? item : (item.shares || 0);
+                
+                const oldItem = gameState.lastKnownPortfolio[ticker];
+                const sOld = !oldItem ? 0 : ((typeof oldItem === 'number') ? oldItem : (oldItem.shares || 0));
+
+                if (sNew > sOld) {
+                    // 수량이 늘어났다면 선물 받은 것으로 판단!
+                    const diff = sNew - sOld;
+                    gameState.currentUser.portfolio = JSON.parse(JSON.stringify(serverPort));
+                    gameState.lastKnownPortfolio = JSON.parse(JSON.stringify(serverPort));
+                    
+                    showGiftReceivedModal(ticker, diff);
+                    break;
+                }
+            }
+            gameState.lastKnownPortfolio = JSON.parse(JSON.stringify(serverPort));
+        } catch (err) {
+            console.error('선물 감지 에러:', err);
+        }
+    }
+
+    function showGiftReceivedModal(ticker, qty) {
+        const stockObj = gameState.stocksList.find(s => s.ticker === ticker);
+        const stockName = stockObj ? stockObj.name : ticker;
+
+        document.getElementById('received-stock-name').innerText = `${stockName} (${ticker})`;
+        document.getElementById('received-stock-qty').innerText = `+${qty}주 수신`;
+        document.getElementById('gift-received-modal').style.display = 'flex';
+        
+        updateHUD();
+        renderStockMarket();
+        renderMyPortfolioDashboard();
+    }
+
+    function closeGiftReceivedModal() {
+        document.getElementById('gift-received-modal').style.display = 'none';
+    }
 
     async function fetchAdminNotice() {
         try {
@@ -493,7 +569,6 @@
                 if (inputPwd === null) return;
                 if (inputPwd !== (data.password || '')) { alert('❌ 비밀번호 불일치!'); return; }
                 
-                // 구버전 포트폴리오 호환성 처리 (숫자 형태 -> 객체 형태)
                 const rawPort = data.portfolio || {};
                 for (let t in rawPort) {
                     if (typeof rawPort[t] === 'number') {
@@ -515,6 +590,8 @@
             }
 
             gameState.currentUser = { name: fullName, cash: userCash, portfolio: userPortfolio };
+            gameState.lastKnownPortfolio = JSON.parse(JSON.stringify(userPortfolio));
+
             localStorage.setItem('stock_user_school', school);
             localStorage.setItem('stock_user_grade', grade);
             localStorage.setItem('stock_user_class', cls);
@@ -575,7 +652,6 @@
         await db.from('stock_rankings').update({ coins: calculateTotalAsset(), portfolio: gameState.currentUser.portfolio }).eq('name', gameState.currentUser.name);
     }
 
-    // 💼 상단 내 보유 주식 현황 대시보드 렌더링
     function renderMyPortfolioDashboard() {
         const chipsContainer = document.getElementById('my-stock-chips');
         const countSpan = document.getElementById('my-portfolio-count');
@@ -683,14 +759,11 @@
         const currentShares = gameState.currentUser.portfolio[ticker].shares;
         const currentAvg = gameState.currentUser.portfolio[ticker].avgPrice;
         
-        // 이동평균선 기반 새로운 매수 평단가 계산
         const newTotalShares = currentShares + qty;
         const newAvgPrice = ((currentShares * currentAvg) + (qty * price)) / newTotalShares;
 
-        gameState.currentUser.portfolio[ticker] = {
-            shares: newTotalShares,
-            avgPrice: newAvgPrice
-        };
+        gameState.currentUser.portfolio[ticker] = { shares: newTotalShares, avgPrice: newAvgPrice };
+        gameState.lastKnownPortfolio = JSON.parse(JSON.stringify(gameState.currentUser.portfolio));
 
         await syncUserTotalAssetToServer();
         updateHUD();
@@ -712,6 +785,7 @@
         if (item.shares === 0) {
             delete gameState.currentUser.portfolio[ticker];
         }
+        gameState.lastKnownPortfolio = JSON.parse(JSON.stringify(gameState.currentUser.portfolio));
 
         await syncUserTotalAssetToServer();
         updateHUD();
