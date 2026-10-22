@@ -118,14 +118,23 @@
             margin-bottom: 12px; font-size: 14px; font-weight: 700; color: #c7d2fe; display: flex; align-items: center; gap: 10px;
         }
 
-        /* 📊 새로 추가된 내 실시간 자산 & 수익률 종합 요약바 */
-        .my-portfolio-summary-bar {
-            background: rgba(15, 23, 42, 0.85); border: 2px solid #38bdf8; border-radius: 12px; padding: 14px 20px;
-            margin-bottom: 20px; font-size: 15px; font-weight: 800; color: #f8fafc;
-            display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 15px;
+        /* 📊 새로 추가된 내 실시간 주식 보유목록 및 수량/매수매도 조작바 */
+        .my-portfolio-summary-box {
+            background: rgba(15, 23, 42, 0.85); border: 2px solid #38bdf8; border-radius: 14px; padding: 16px 20px;
+            margin-bottom: 20px; font-size: 14px; font-weight: 700; color: #f8fafc;
+            display: flex; flex-direction: column; gap: 10px; max-height: 220px; overflow-y: auto;
             box-shadow: 0 4px 15px rgba(2, 132, 199, 0.2);
         }
-        .summary-item { display: flex; align-items: center; gap: 8px; }
+        .summary-row {
+            display: flex; justify-content: space-between; align-items: center; background: #1e293b;
+            padding: 10px 16px; border-radius: 10px; border: 1px solid #475569; flex-wrap: wrap; gap: 10px;
+        }
+        .summary-stock-info {
+            display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s;
+        }
+        .summary-stock-info:hover { opacity: 0.8; }
+        .summary-buy-price { font-size: 12px; color: #94a3b8; font-weight: 600; }
+        .summary-actions { display: flex; align-items: center; gap: 6px; }
 
         .stock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 15px; max-height: 420px; overflow-y: auto; padding-right: 5px; }
         .stock-card {
@@ -177,6 +186,14 @@
             display: flex; justify-content: space-between; align-items: center; background: #f8fafc;
             border: 1px solid #e2e8f0; padding: 12px 16px; border-radius: 10px; margin-bottom: 8px; font-weight: 700;
         }
+
+        /* 🎁 선물 수락 오버레이 모달 스스타일 */
+        .gift-overlay-modal {
+            background: #1e293b; border: 3px solid #facc15; border-radius: 24px; padding: 35px 25px;
+            text-align: center; color: white; width: 90%; max-width: 420px; box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+        }
+        .gift-emoji { font-size: 75px; margin: 15px 0; animation: bounce 1.2s infinite alternate; }
+        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-12px); } }
     </style>
 </head>
 <body>
@@ -251,11 +268,9 @@
             <span>📢 [실시간 속보] 종목 우측의 별표(★)를 눌러 관심종목을 등록해 보세요!</span>
         </div>
 
-        <!-- 📊 속보 아래: 내 실시간 주식 보유 현황 및 수익률 바 -->
-        <div class="my-portfolio-summary-bar">
-            <div class="summary-item">📦 Total 주식: <span id="summary-total-shares" style="color:#facc15;">0</span>주</div>
-            <div class="summary-item">💵 주식 평가액: <span id="summary-stock-val" style="color:#38bdf8;">0</span> 원</div>
-            <div class="summary-item">📈 총 평가손익: <span id="summary-profit-val" style="color:#ef4444;">0 원 (0.00%)</span></div>
+        <!-- 📊 속보 아래: 내 실시간 보유 주식 목록 및 조작 박스 -->
+        <div class="my-portfolio-summary-box" id="my-portfolio-summary-box">
+            <span style="color:#94a3b8; text-align:center;">보유 중인 주식이 없습니다.</span>
         </div>
 
         <div style="font-size: 15px; font-weight: bold; margin-bottom: 12px; color: #94a3b8;">
@@ -276,6 +291,18 @@
             <button class="nav-btn btn-blue" onclick="openPortfolioModal()">내 포트폴리오</button>
             <button class="nav-btn btn-purple" onclick="openHallModal()">명예의 전당</button>
         </div>
+    </div>
+</div>
+
+<!-- 🎁 주식 선물 수락 오버레이 모달 -->
+<div id="gift-overlay-modal" class="modal">
+    <div class="gift-overlay-modal">
+        <h2 style="font-size: 24px; font-weight: 900; color: #facc15;">선물을 받았습니다!</h2>
+        <div class="gift-emoji">🎁</div>
+        <div id="gift-overlay-detail" style="font-size: 20px; font-weight: 800; margin-bottom: 25px; color: #ffffff;">
+            [NVDA] 10주
+        </div>
+        <button style="width: 100%; padding: 14px; background: #10b981; color: white; font-size: 16px; font-weight: 900; border: none; border-radius: 12px; cursor: pointer;" onclick="acceptGift()">수락</button>
     </div>
 </div>
 
@@ -356,7 +383,8 @@
         watchlist: JSON.parse(localStorage.getItem('stock_watchlist')) || [],
         selectedTicker: null,
         isPlaying: false,
-        myStocks: []
+        myStocks: [],
+        lastStockCounts: {} // 선물 수신 감지용
     };
 
     window.addEventListener('DOMContentLoaded', async () => {
@@ -489,7 +517,6 @@
         } catch (err) { console.error(err); }
     }
 
-    // 🔒 비밀번호 인증이 포함된 게임 접속 검증 함수
     async function verifyAndStartGame() {
         const school = document.getElementById('school-input').value.trim();
         const grade = document.getElementById('grade-select').value;
@@ -503,12 +530,10 @@
             const { data } = await db.from('stock_rankings').select('*').eq('name', fullName).maybeSingle();
 
             if (data) {
-                // 기존 유저: 비밀번호 검증
                 const inputPwd = prompt(`"${fullName}" 계정입니다. 비밀번호를 입력하세요:`);
                 if (inputPwd === null) return;
                 if (inputPwd !== (data.password || '')) { alert('❌ 비밀번호가 일치하지 않습니다!'); return; }
             } else {
-                // 신규 유저: 비밀번호 설정 및 초기 생성
                 const newPwd = prompt(`신규 계정입니다. 사용할 비밀번호를 설정하세요:`);
                 if (!newPwd || !newPwd.trim()) { alert('비밀번호를 입력해야 접속할 수 있습니다.'); return; }
                 await db.from('stock_rankings').insert({ name: fullName, coins: 1000000, password: newPwd.trim() });
@@ -524,13 +549,45 @@
         } catch (err) { alert('오류 발생: ' + err.message); }
     }
 
+    // 🎁 실시간 주식 수신 및 어드민 선물 감지
     async function fetchMyStocks() {
         if (!gameState.currentUser) return;
         const { data: uData } = await db.from('stock_rankings').select('*').eq('name', gameState.currentUser.name).single();
         if (uData) gameState.currentUser.cash = uData.coins || 0;
 
         const { data: sData } = await db.from('user_stocks').select('*').eq('username', gameState.currentUser.name);
-        gameState.myStocks = sData || [];
+        const newMyStocks = sData || [];
+
+        // 관리자 선물 감지 (수량이 외부에서 늘어난 경우)
+        if (gameState.isPlaying && Object.keys(gameState.lastStockCounts).length > 0) {
+            newMyStocks.forEach(st => {
+                const oldCnt = gameState.lastStockCounts[st.ticker] || 0;
+                if (st.shares > oldCnt && !st.isLocalTrade) {
+                    const diffQty = st.shares - oldCnt;
+                    showGiftOverlay(st.ticker, diffQty);
+                }
+                delete st.isLocalTrade;
+            });
+        }
+
+        gameState.myStocks = newMyStocks;
+        
+        // 이전 수량 기록 업데이트
+        gameState.lastStockCounts = {};
+        gameState.myStocks.forEach(st => {
+            gameState.lastStockCounts[st.ticker] = st.shares;
+        });
+    }
+
+    function showGiftOverlay(ticker, qty) {
+        const stockObj = gameState.stocksList.find(s => s.ticker === ticker);
+        const name = stockObj ? stockObj.name : ticker;
+        document.getElementById('gift-overlay-detail').innerText = `[${name}] ${qty}주`;
+        openModal('gift-overlay-modal');
+    }
+
+    function acceptGift() {
+        closeModal('gift-overlay-modal');
     }
 
     function startGameSession() {
@@ -561,35 +618,50 @@
         return (gameState.currentUser.cash || 0) + stockValue;
     }
 
-    // 📊 상단 HUD 및 속보 아래 보유 현황 & 수익률 요약 업데이트
+    // 📊 상단 HUD 및 속보 아래 보유 현황 & 개별 주식 조작 박스 업데이트
     function updateHUD() {
         if (!gameState.currentUser) return;
-        
-        let totalShares = 0;
-        let totalStockVal = 0;
-        let totalCost = 0;
-
-        gameState.myStocks.forEach(st => {
-            const curP = gameState.marketPrices[st.ticker] || st.avg_price || 1000;
-            totalShares += st.shares;
-            totalStockVal += st.shares * curP;
-            totalCost += st.shares * (st.avg_price || curP);
-        });
-
-        const totalProfit = totalStockVal - totalCost;
-        const profitRate = totalCost > 0 ? ((totalProfit / totalCost) * 100).toFixed(2) : '0.00';
-        const isUp = totalProfit >= 0;
 
         document.getElementById('hud-cash').innerText = (gameState.currentUser.cash || 0).toLocaleString();
         document.getElementById('hud-total-asset').innerText = calculateTotalAsset().toLocaleString();
 
-        // 속보 아래 요약 바 업데이트
-        document.getElementById('summary-total-shares').innerText = totalShares.toLocaleString();
-        document.getElementById('summary-stock-val').innerText = totalStockVal.toLocaleString();
-        
-        const profitEl = document.getElementById('summary-profit-val');
-        profitEl.innerText = `${isUp ? '+' : ''}${totalProfit.toLocaleString()} 원 (${isUp ? '+' : ''}${profitRate}%)`;
-        profitEl.className = isUp ? 'price-up' : 'price-down';
+        // 속보 아래 요약 박스 업데이트 (요청사항 반영)
+        const summaryBox = document.getElementById('my-portfolio-summary-box');
+        if (gameState.myStocks.length === 0) {
+            summaryBox.innerHTML = '<span style="color:#94a3b8; text-align:center;">보유 중인 주식이 없습니다.</span>';
+            return;
+        }
+
+        let html = '';
+        gameState.myStocks.forEach(st => {
+            const curP = gameState.marketPrices[st.ticker] || st.avg_price || 1000;
+            const stockObj = gameState.stocksList.find(s => s.ticker === st.ticker);
+            const name = stockObj ? stockObj.name : st.ticker;
+            
+            const profit = (curP - st.avg_price) * st.shares;
+            const profitRate = st.avg_price > 0 ? (((curP - st.avg_price) / st.avg_price) * 100).toFixed(2) : '0.00';
+            const isUp = profit >= 0;
+
+            html += `
+                <div class="summary-row">
+                    <div class="summary-stock-info" onclick="openDetailModal('${st.ticker}')" title="클릭하여 상세 거래하기">
+                        <div>
+                            <b>${name}</b> <span style="font-size:12px; color:#38bdf8;">(${st.ticker})</span>
+                            <span class="summary-buy-price">구매가: ${st.avg_price.toLocaleString()}원</span>
+                        </div>
+                    </div>
+                    <div style="font-weight:800;" class="${isUp ? 'price-up' : 'price-down'}">
+                        ${isUp ? '+' : ''}${profitRate}% (${isUp ? '+' : ''}${profit.toLocaleString()}원)
+                    </div>
+                    <div class="summary-actions">
+                        <input type="number" id="quick-input-${st.ticker}" class="stock-input" value="1" min="1">
+                        <button class="btn-trade btn-buy" onclick="quickBuy('${st.ticker}')">매수</button>
+                        <button class="btn-trade btn-sell" onclick="quickSell('${st.ticker}')">매도</button>
+                    </div>
+                </div>
+            `;
+        });
+        summaryBox.innerHTML = html;
     }
 
     function renderStockMarket() {
@@ -637,10 +709,30 @@
         renderStockMarket();
     }
 
-    // 🛒 매수 처리 (user_stocks 테이블 upsert 제약 조건 명시)
+    async function quickBuy(ticker) {
+        const input = document.getElementById(`quick-input-${ticker}`);
+        const qty = parseInt(input.value) || 1;
+        await buyStockWithQty(ticker, qty);
+    }
+
+    async function quickSell(ticker) {
+        const input = document.getElementById(`quick-input-${ticker}`);
+        const qty = parseInt(input.value) || 1;
+        await sellStockWithQty(ticker, qty);
+    }
+
     async function buyStock(ticker) {
-        if (!gameState.currentUser) return;
         const qty = parseInt(document.getElementById(`input-${ticker}`).value) || 1;
+        await buyStockWithQty(ticker, qty);
+    }
+
+    async function sellStock(ticker) {
+        const qty = parseInt(document.getElementById(`input-${ticker}`).value) || 1;
+        await sellStockWithQty(ticker, qty);
+    }
+
+    async function buyStockWithQty(ticker, qty) {
+        if (!gameState.currentUser) return;
         const price = gameState.marketPrices[ticker];
         const cost = price * qty;
         if (gameState.currentUser.cash < cost) { alert('예수금이 부족합니다!'); return; }
@@ -648,20 +740,18 @@
         const newCash = gameState.currentUser.cash - cost;
         gameState.currentUser.cash = newCash;
 
-        // 1. 현금 차감 반영
         await db.from('stock_rankings').update({ coins: newCash }).eq('name', gameState.currentUser.name);
 
-        // 2. 보유 주식 수량 및 평단가 계산
         const mySt = gameState.myStocks.find(s => s.ticker === ticker);
         let newShares = qty;
         let newAvg = price;
         if (mySt) {
             newShares = mySt.shares + qty;
             newAvg = Math.round(((mySt.shares * mySt.avg_price) + cost) / newShares);
+            mySt.isLocalTrade = true;
         }
 
-        // 3. user_stocks에 저장 (onConflict 지정으로 주식 수량이 확실히 저장됨!)
-        const { error } = await db.from('user_stocks').upsert({
+        await db.from('user_stocks').upsert({
             username: gameState.currentUser.name,
             ticker: ticker,
             shares: newShares,
@@ -669,17 +759,11 @@
             updated_at: new Date()
         }, { onConflict: 'username, ticker' });
 
-        if (error) {
-            alert('매수 실패: ' + error.message);
-        } else {
-            await refreshGameData();
-        }
+        await refreshGameData();
     }
 
-    // 💰 매도 처리
-    async function sellStock(ticker) {
+    async function sellStockWithQty(ticker, qty) {
         if (!gameState.currentUser) return;
-        const qty = parseInt(document.getElementById(`input-${ticker}`).value) || 1;
         const mySt = gameState.myStocks.find(s => s.ticker === ticker);
         const shares = mySt ? mySt.shares : 0;
         if (shares < qty) { alert('보유 주식이 부족합니다!'); return; }
@@ -688,11 +772,10 @@
         const earn = price * qty;
         const newCash = gameState.currentUser.cash + earn;
         gameState.currentUser.cash = newCash;
+        if (mySt) mySt.isLocalTrade = true;
 
-        // 1. 현금 증가 반영
         await db.from('stock_rankings').update({ coins: newCash }).eq('name', gameState.currentUser.name);
 
-        // 2. 보유 수량 차감 또는 삭제
         const remainShares = shares - qty;
         if (remainShares > 0) {
             await db.from('user_stocks').update({ shares: remainShares }).eq('username', gameState.currentUser.name).eq('ticker', ticker);
@@ -732,8 +815,7 @@
         const qty = Math.floor(gameState.currentUser.cash / price);
         if (qty <= 0) { alert('예수금이 부족합니다!'); return; }
 
-        document.getElementById(`input-${ticker}`).value = qty;
-        await buyStock(ticker);
+        await buyStockWithQty(ticker, qty);
         openDetailModal(ticker);
     }
 
@@ -743,8 +825,7 @@
         const mySt = gameState.myStocks.find(s => s.ticker === ticker);
         if (!mySt || mySt.shares <= 0) { alert('보유 주식이 없습니다!'); return; }
 
-        document.getElementById(`input-${ticker}`).value = mySt.shares;
-        await sellStock(ticker);
+        await sellStockWithQty(ticker, mySt.shares);
         openDetailModal(ticker);
     }
 
