@@ -30,7 +30,7 @@
             transition: all 0.3s; position: relative;
         }
 
-        /* 📢 공지사항 배너 (메인 & 주식 화면 양쪽 공용) */
+        /* 📢 공지사항 배너 */
         .admin-notice-banner {
             background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; padding: 14px 25px;
             font-weight: 800; font-size: 14.5px; display: none; align-items: center; gap: 12px;
@@ -46,7 +46,7 @@
             padding: 10px 12px; border-radius: 10px; border: 2px solid #475569;
             background: #1e293b; color: white; font-size: 14px; font-weight: bold; text-align: center;
         }
-        .top-user-bar input[type="text"] { width: 130px; }
+        .top-user-bar input[type="text"] { width: 150px; }
         .top-user-bar input[type="number"] { width: 70px; }
         .btn-challenge {
             background: #f97316; color: white; border: none; padding: 10px 25px; font-weight: 800;
@@ -158,12 +158,6 @@
             margin-top: 15px; text-align: left; overflow-y: auto; max-height: 60vh; padding-right: 5px;
         }
 
-        .news-card-item {
-            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 10px;
-        }
-        .news-card-title { font-weight: 900; color: #2563eb; font-size: 15px; margin-bottom: 4px; }
-        .news-card-text { font-size: 13.5px; color: #334155; line-height: 1.5; }
-
         .guide-box {
             background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 15px;
             margin-top: 10px; text-align: left; font-size: 14px; line-height: 1.6; color: #334155;
@@ -185,6 +179,7 @@
         <div id="admin-notice-text-main">공지사항 내용</div>
     </div>
 
+    <!-- 상단 학교/학년/반/닉네임 입력 바 -->
     <div class="top-user-bar" id="top-user-bar">
         <input type="text" id="school-input" placeholder="학교 이름" value="서울잠신초등학교">
         <select id="grade-select">
@@ -198,6 +193,7 @@
         <button class="btn-challenge" onclick="verifyAndStartGame()">트레이딩 시작</button>
     </div>
 
+    <!-- 메인 대시보드 랭킹판 -->
     <div id="main-dashboard" class="dashboard">
         <div class="dash-header">
             <div class="dash-title">📈 글로벌 주식 부자 랭킹</div>
@@ -227,8 +223,8 @@
         </div>
     </div>
 
+    <!-- 게임 트레이딩 화면 -->
     <div id="game-screen">
-        <!-- 📢 어드민 공지 배너 (주식 거래 화면용) -->
         <div id="admin-notice-banner-game" class="admin-notice-banner" style="margin-bottom: 20px; border-radius: 12px; border: 1px solid #6366f1;">
             <span style="font-size: 20px;">📢</span>
             <div id="admin-notice-text-game">공지사항 내용</div>
@@ -254,18 +250,19 @@
         </div>
     </div>
 
+    <!-- 하단 네비게이션 바 -->
     <div class="bottom-nav-bar" id="bottom-bar">
         <div class="main-title">📈 월스트리트 주식 타이쿤</div>
         <div class="nav-buttons">
             <button class="nav-btn btn-yellow" onclick="openModal('guide-modal')">게임 규칙</button>
-            <button class="nav-btn btn-green" onclick="openModal('news-modal')">📰 뉴스판</button>
+            <button class="nav-btn btn-green" onclick="openNewsModal()">📰 뉴스판</button>
             <button class="nav-btn btn-blue" onclick="openPortfolioModal()">내 포트폴리오</button>
             <button class="nav-btn btn-purple" onclick="openHallModal()">명예의 전당</button>
         </div>
     </div>
 </div>
 
-<!-- 상세 보기 모달 -->
+<!-- 상세 차트 모달 -->
 <div id="detail-modal" class="modal">
     <div class="modal-content" style="color: #f3f4f6; background: #1e293b;">
         <button class="modal-close" onclick="closeModal('detail-modal')" style="color:#cbd5e1;">✖</button>
@@ -342,7 +339,7 @@
         watchlist: JSON.parse(localStorage.getItem('stock_watchlist')) || [],
         selectedTicker: null,
         isPlaying: false,
-        myStocks: [] // user_stocks 정규화 데이터 저장용
+        myStocks: []
     };
 
     window.addEventListener('DOMContentLoaded', async () => {
@@ -487,14 +484,9 @@
         try {
             const { data } = await db.from('stock_rankings').select('*').eq('name', fullName).maybeSingle();
 
-            if (data) {
-                const inputPwd = prompt(`"${fullName}" 계정입니다. 비밀번호를 입력하세요:`);
-                if (inputPwd === null) return;
-                if (inputPwd !== (data.password || '')) { alert('❌ 비밀번호 불일치!'); return; }
-            } else {
-                const newPwd = prompt(`신규 계정입니다. 사용할 비밀번호를 설정하세요:`);
-                if (!newPwd || !newPwd.trim()) { alert('비밀번호를 입력해야 합니다.'); return; }
-                await db.from('stock_rankings').insert({ name: fullName, coins: 1000000, password: newPwd.trim() });
+            if (!data) {
+                // 신규 유저 생성 (초기 자금 1,000,000원)
+                await db.from('stock_rankings').insert({ name: fullName, coins: 1000000 });
             }
 
             gameState.currentUser = { name: fullName };
@@ -603,7 +595,7 @@
         if (gameState.currentUser.cash < cost) { alert('예수금 부족!'); return; }
 
         gameState.currentUser.cash -= cost;
-        await db.from('stock_rankings').update({ coins: calculateTotalAsset() }).eq('name', gameState.currentUser.name);
+        await db.from('stock_rankings').update({ coins: gameState.currentUser.cash }).eq('name', gameState.currentUser.name);
 
         const mySt = gameState.myStocks.find(s => s.ticker === ticker);
         let newShares = qty;
@@ -633,7 +625,7 @@
 
         const price = gameState.marketPrices[ticker];
         gameState.currentUser.cash += price * qty;
-        await db.from('stock_rankings').update({ coins: calculateTotalAsset() }).eq('name', gameState.currentUser.name);
+        await db.from('stock_rankings').update({ coins: gameState.currentUser.cash }).eq('name', gameState.currentUser.name);
 
         const remainShares = shares - qty;
         if (remainShares > 0) {
@@ -713,6 +705,21 @@
         }
     }
 
+    function openNewsModal() {
+        const container = document.getElementById('news-container');
+        let html = '';
+        gameState.stocksList.forEach(s => {
+            html += `
+                <div class="news-card-item">
+                    <div class="news-card-title">${s.name} (${s.ticker})</div>
+                    <div class="news-card-text">${s.news || '속보가 없습니다.'}</div>
+                </div>
+            `;
+        });
+        container.innerHTML = html || '뉴스 데이터가 없습니다.';
+        openModal('news-modal');
+    }
+
     function openPortfolioModal() {
         const listEl = document.getElementById('portfolio-list');
         if (!gameState.currentUser || gameState.myStocks.length === 0) {
@@ -770,7 +777,6 @@
 
     async function quitGame() {
         if (!confirm('거래를 종료하고 메인 화면으로 돌아가시겠습니까?')) return;
-        await syncUserTotalAssetToServer();
         gameState.isPlaying = false;
         document.getElementById('top-user-bar').style.display = 'flex';
         document.getElementById('main-dashboard').style.display = 'block';
