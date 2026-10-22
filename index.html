@@ -269,7 +269,7 @@
             <span>📢 [실시간 속보] 종목 우측의 별표(★)를 눌러 관심종목을 등록해 보세요!</span>
         </div>
 
-        <!-- 📊 속보 아래: 내 실시간 보유 주식 목록 및 조작 박스 (수량 명시 버전) -->
+        <!-- 📊 속보 아래: 내 실시간 보유 주식 목록 및 조작 박스 -->
         <div class="my-portfolio-summary-box" id="my-portfolio-summary-box">
             <span style="color:#94a3b8; text-align:center;">보유 중인 주식이 없습니다.</span>
         </div>
@@ -385,7 +385,8 @@
         selectedTicker: null,
         isPlaying: false,
         myStocks: [],
-        lastStockCounts: {}
+        lastStockCounts: {},
+        localTrades: {} // 직전 거래 플래그 추적
     };
 
     window.addEventListener('DOMContentLoaded', async () => {
@@ -558,17 +559,21 @@
         const { data: sData } = await db.from('user_stocks').select('*').eq('username', gameState.currentUser.name);
         const newMyStocks = sData || [];
 
+        // 관리자 선물 감지 (직접 매수한 경우가 아닐 때만 선물 팝업 띄움)
         if (gameState.isPlaying && Object.keys(gameState.lastStockCounts).length > 0) {
             newMyStocks.forEach(st => {
                 const oldCnt = gameState.lastStockCounts[st.ticker] || 0;
-                if (st.shares > oldCnt && !st.isLocalTrade) {
-                    const diffQty = st.shares - oldCnt;
-                    showGiftOverlay(st.ticker, diffQty);
+                if (st.shares > oldCnt) {
+                    if (!gameState.localTrades[st.ticker]) {
+                        const diffQty = st.shares - oldCnt;
+                        showGiftOverlay(st.ticker, diffQty);
+                    }
                 }
-                delete st.isLocalTrade;
             });
         }
 
+        // 플래그 초기화
+        gameState.localTrades = {};
         gameState.myStocks = newMyStocks;
         
         gameState.lastStockCounts = {};
@@ -616,7 +621,6 @@
         return (gameState.currentUser.cash || 0) + stockValue;
     }
 
-    // 📊 보유주식명 + 수량(뱃지) + 평단가 + 수익률 + 매수/매도 UI 렌더링
     function updateHUD() {
         if (!gameState.currentUser) return;
 
@@ -733,6 +737,9 @@
         const cost = price * qty;
         if (gameState.currentUser.cash < cost) { alert('예수금이 부족합니다!'); return; }
 
+        // 내가 직접 매수함을 기록하여 선물 팝업 방지
+        gameState.localTrades[ticker] = true;
+
         const newCash = gameState.currentUser.cash - cost;
         gameState.currentUser.cash = newCash;
 
@@ -744,7 +751,6 @@
         if (mySt) {
             newShares = mySt.shares + qty;
             newAvg = Math.round(((mySt.shares * mySt.avg_price) + cost) / newShares);
-            mySt.isLocalTrade = true;
         }
 
         await db.from('user_stocks').upsert({
@@ -764,11 +770,12 @@
         const shares = mySt ? mySt.shares : 0;
         if (shares < qty) { alert('보유 주식이 부족합니다!'); return; }
 
+        gameState.localTrades[ticker] = true;
+
         const price = gameState.marketPrices[ticker];
         const earn = price * qty;
         const newCash = gameState.currentUser.cash + earn;
         gameState.currentUser.cash = newCash;
-        if (mySt) mySt.isLocalTrade = true;
 
         await db.from('stock_rankings').update({ coins: newCash }).eq('name', gameState.currentUser.name);
 
