@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>월스트리트 타이쿤 - 통합 관리자 패널</title>
+    <!-- Supabase JS SDK 최신 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -223,7 +224,11 @@
 <script>
     const SUPABASE_URL = 'https://qgtsxrvwrjkdezwzgrwr.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFndHN4cnZ3cmprZGV6d3pncndyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTExMTYsImV4cCI6MjEwODAyNzExNn0.lEKSx92rIIjd1MMw0Faa-EoUhjeueWfLrzev1Ww9HVA';
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    // 안전한 Supabase 클라이언트 생성
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: { persistSession: false }
+    });
 
     const predefinedNewsList = [
         { text: '🚀 어닝 서프라이즈 기록하며 시장 전망치 대폭 상회!', weight: 0.008, type: 'up' },
@@ -268,7 +273,8 @@
     }
 
     async function loadStockTable() {
-        const { data } = await db.from('stock_market').select('*').order('ticker');
+        const { data, error } = await db.from('stock_market').select('*').order('ticker');
+        if (error) { console.error('주식 로드 에러:', error); return; }
         stockDataList = data || [];
         const tbody = document.getElementById('stock-table-body');
         if (stockDataList.length === 0) {
@@ -328,7 +334,9 @@
             }
         }
 
-        await db.from('stock_market').upsert({ ticker, name, price: newPrice, prev_price: prevPrice, news: finalNewsText, news_weight: finalNewsWeight, updated_at: new Date() });
+        const { error } = await db.from('stock_market').upsert({ ticker, name, price: newPrice, prev_price: prevPrice, news: finalNewsText, news_weight: finalNewsWeight, updated_at: new Date() });
+        if (error) { alert('종목 저장 실패: ' + error.message); return; }
+
         alert(`[${ticker}] 종목 저장 완료.`);
         clearStockForm();
         loadStockTable();
@@ -359,7 +367,8 @@
     }
 
     async function loadUserList() {
-        const { data } = await db.from('stock_rankings').select('*').order('name');
+        const { data, error } = await db.from('stock_rankings').select('*').order('name');
+        if (error) { console.error('유저 리스트 로드 에러:', error); return; }
         userListData = data || [];
         
         const select = document.getElementById('user-select');
