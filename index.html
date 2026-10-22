@@ -118,7 +118,7 @@
             margin-bottom: 12px; font-size: 14px; font-weight: 700; color: #c7d2fe; display: flex; align-items: center; gap: 10px;
         }
 
-        /* 📊 새로 추가된 내 실시간 주식 보유목록 및 수량/매수매도 조작바 */
+        /* 📊 실시간 보유주식 현황 박스 */
         .my-portfolio-summary-box {
             background: rgba(15, 23, 42, 0.85); border: 2px solid #38bdf8; border-radius: 14px; padding: 16px 20px;
             margin-bottom: 20px; font-size: 14px; font-weight: 700; color: #f8fafc;
@@ -133,7 +133,8 @@
             display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s;
         }
         .summary-stock-info:hover { opacity: 0.8; }
-        .summary-buy-price { font-size: 12px; color: #94a3b8; font-weight: 600; }
+        .summary-shares-badge { background: #0284c7; color: white; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 13px; }
+        .summary-buy-price { font-size: 12px; color: #94a3b8; font-weight: 600; margin-left: 6px; }
         .summary-actions { display: flex; align-items: center; gap: 6px; }
 
         .stock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 15px; max-height: 420px; overflow-y: auto; padding-right: 5px; }
@@ -187,7 +188,7 @@
             border: 1px solid #e2e8f0; padding: 12px 16px; border-radius: 10px; margin-bottom: 8px; font-weight: 700;
         }
 
-        /* 🎁 선물 수락 오버레이 모달 스스타일 */
+        /* 🎁 선물 수락 오버레이 모달 */
         .gift-overlay-modal {
             background: #1e293b; border: 3px solid #facc15; border-radius: 24px; padding: 35px 25px;
             text-align: center; color: white; width: 90%; max-width: 420px; box-shadow: 0 20px 50px rgba(0,0,0,0.6);
@@ -268,7 +269,7 @@
             <span>📢 [실시간 속보] 종목 우측의 별표(★)를 눌러 관심종목을 등록해 보세요!</span>
         </div>
 
-        <!-- 📊 속보 아래: 내 실시간 보유 주식 목록 및 조작 박스 -->
+        <!-- 📊 속보 아래: 내 실시간 보유 주식 목록 및 조작 박스 (수량 명시 버전) -->
         <div class="my-portfolio-summary-box" id="my-portfolio-summary-box">
             <span style="color:#94a3b8; text-align:center;">보유 중인 주식이 없습니다.</span>
         </div>
@@ -384,7 +385,7 @@
         selectedTicker: null,
         isPlaying: false,
         myStocks: [],
-        lastStockCounts: {} // 선물 수신 감지용
+        lastStockCounts: {}
     };
 
     window.addEventListener('DOMContentLoaded', async () => {
@@ -549,7 +550,6 @@
         } catch (err) { alert('오류 발생: ' + err.message); }
     }
 
-    // 🎁 실시간 주식 수신 및 어드민 선물 감지
     async function fetchMyStocks() {
         if (!gameState.currentUser) return;
         const { data: uData } = await db.from('stock_rankings').select('*').eq('name', gameState.currentUser.name).single();
@@ -558,7 +558,6 @@
         const { data: sData } = await db.from('user_stocks').select('*').eq('username', gameState.currentUser.name);
         const newMyStocks = sData || [];
 
-        // 관리자 선물 감지 (수량이 외부에서 늘어난 경우)
         if (gameState.isPlaying && Object.keys(gameState.lastStockCounts).length > 0) {
             newMyStocks.forEach(st => {
                 const oldCnt = gameState.lastStockCounts[st.ticker] || 0;
@@ -572,7 +571,6 @@
 
         gameState.myStocks = newMyStocks;
         
-        // 이전 수량 기록 업데이트
         gameState.lastStockCounts = {};
         gameState.myStocks.forEach(st => {
             gameState.lastStockCounts[st.ticker] = st.shares;
@@ -618,14 +616,13 @@
         return (gameState.currentUser.cash || 0) + stockValue;
     }
 
-    // 📊 상단 HUD 및 속보 아래 보유 현황 & 개별 주식 조작 박스 업데이트
+    // 📊 보유주식명 + 수량(뱃지) + 평단가 + 수익률 + 매수/매도 UI 렌더링
     function updateHUD() {
         if (!gameState.currentUser) return;
 
         document.getElementById('hud-cash').innerText = (gameState.currentUser.cash || 0).toLocaleString();
         document.getElementById('hud-total-asset').innerText = calculateTotalAsset().toLocaleString();
 
-        // 속보 아래 요약 박스 업데이트 (요청사항 반영)
         const summaryBox = document.getElementById('my-portfolio-summary-box');
         if (gameState.myStocks.length === 0) {
             summaryBox.innerHTML = '<span style="color:#94a3b8; text-align:center;">보유 중인 주식이 없습니다.</span>';
@@ -644,11 +641,10 @@
 
             html += `
                 <div class="summary-row">
-                    <div class="summary-stock-info" onclick="openDetailModal('${st.ticker}')" title="클릭하여 상세 거래하기">
-                        <div>
-                            <b>${name}</b> <span style="font-size:12px; color:#38bdf8;">(${st.ticker})</span>
-                            <span class="summary-buy-price">구매가: ${st.avg_price.toLocaleString()}원</span>
-                        </div>
+                    <div class="summary-stock-info" onclick="openDetailModal('${st.ticker}')" title="클릭하여 상세 차트 및 매매">
+                        <b>${name}</b>
+                        <span class="summary-shares-badge">${st.shares}주</span>
+                        <span class="summary-buy-price">(구매가: ${st.avg_price.toLocaleString()}원)</span>
                     </div>
                     <div style="font-weight:800;" class="${isUp ? 'price-up' : 'price-down'}">
                         ${isUp ? '+' : ''}${profitRate}% (${isUp ? '+' : ''}${profit.toLocaleString()}원)
