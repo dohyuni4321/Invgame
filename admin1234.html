@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>월스트리트 타이쿤 - 통합 관리자 패널</title>
-    <!-- Supabase JS SDK 최신 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -64,7 +63,6 @@
         <button class="btn btn-red" onclick="resetAllStockPrices()">💣 시세 전체 리셋 (초기 상장가)</button>
     </div>
 
-    <!-- 시장 설정 및 공지사항 제어 -->
     <div class="grid-2">
         <div class="card">
             <div class="card-title">⚙️ 시장 가중치, 상한선 & 부스트 설정</div>
@@ -79,8 +77,8 @@
                 </div>
             </div>
             <div class="form-group">
-                <label style="color:#facc15;">🚀 변동폭 부스트 배율 (0 = 기본 1배 / 10 = 10배 이벤트)</label>
-                <input type="number" id="cfg-boost-multiplier" step="0.5" value="0" placeholder="0 또는 배율">
+                <label style="color:#facc15;">🚀 변동폭 부스트 배율 (0 = 기본 1배)</label>
+                <input type="number" id="cfg-boost-multiplier" step="0.5" value="0">
             </div>
             <button class="btn btn-blue" style="width:100%; margin-top:10px;" onclick="saveMarketConfig()">시장 설정 저장</button>
         </div>
@@ -110,7 +108,6 @@
     </div>
 
     <div class="grid-2">
-        <!-- 종목 추가/수정 -->
         <div class="card">
             <div class="card-title">➕ 주식 종목 신규 등록 / 편집</div>
             <div class="form-row">
@@ -143,7 +140,6 @@
             </div>
         </div>
 
-        <!-- 유저 자산 & 주식 수량 UI 직접 관리 -->
         <div class="card">
             <div class="card-title">👤 유저 계정 & 보유주식 직접 관리</div>
             <div class="form-group">
@@ -181,7 +177,6 @@
         </div>
     </div>
 
-    <!-- 주식 목록 테이블 (선물 아이콘 포함) -->
     <div class="card">
         <div class="card-title">
             <span>📈 등록된 주식 종목 현황 및 유저 선물 기능</span>
@@ -202,7 +197,7 @@
     </div>
 </div>
 
-<!-- 🎁 주식 선물하기 모달 -->
+<!-- 선물 모달 -->
 <div id="gift-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.8); z-index:9999; justify-content:center; align-items:center;">
     <div style="background:#1e293b; padding:25px; border-radius:16px; border:2px solid #38bdf8; width:100%; max-width:400px; color:white;">
         <h3 id="gift-modal-title" style="margin-bottom:15px; color:#facc15;">🎁 주식 선물하기</h3>
@@ -224,11 +219,7 @@
 <script>
     const SUPABASE_URL = 'https://qgtsxrvwrjkdezwzgrwr.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFndHN4cnZ3cmprZGV6d3pncndyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTExMTYsImV4cCI6MjEwODAyNzExNn0.lEKSx92rIIjd1MMw0Faa-EoUhjeueWfLrzev1Ww9HVA';
-    
-    // 안전한 Supabase 클라이언트 생성
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-        auth: { persistSession: false }
-    });
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const predefinedNewsList = [
         { text: '🚀 어닝 서프라이즈 기록하며 시장 전망치 대폭 상회!', weight: 0.008, type: 'up' },
@@ -255,30 +246,25 @@
 
     function initNewsDropdown() {
         const select = document.getElementById('stock-news-select');
-        let html = '<option value="">-- 뉴스를 선택하세요 (미선택 시 자동) --</option>';
+        let html = '<option value="">-- 뉴스를 선택하세요 --</option>';
         predefinedNewsList.forEach((n, idx) => {
-            const prefix = n.type === 'up' ? '📈 [호재] ' : (n.type === 'down' ? '📉 [악재] ' : '📊 [중립] ');
-            html += `<option value="${idx}" data-weight="${n.weight}">${prefix}${n.text}</option>`;
+            html += `<option value="${idx}" data-weight="${n.weight}">${n.text}</option>`;
         });
         select.innerHTML = html;
     }
 
     function onNewsSelectChange() {
         const select = document.getElementById('stock-news-select');
-        const selectedOpt = select.options[select.selectedIndex];
-        const weight = selectedOpt.getAttribute('data-weight');
-        if (weight !== null && select.value !== '') {
-            document.getElementById('stock-news-weight').value = weight;
-        }
+        const weight = select.options[select.selectedIndex].getAttribute('data-weight');
+        if (weight !== null) document.getElementById('stock-news-weight').value = weight;
     }
 
     async function loadStockTable() {
-        const { data, error } = await db.from('stock_market').select('*').order('ticker');
-        if (error) { console.error('주식 로드 에러:', error); return; }
+        const { data } = await db.from('stock_market').select('*').order('ticker');
         stockDataList = data || [];
         const tbody = document.getElementById('stock-table-body');
         if (stockDataList.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">등록된 주식이 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">등록된 주식이 없습니다.</td></tr>';
             return;
         }
         let html = '';
@@ -289,9 +275,7 @@
                     <td><b>${s.name}</b></td>
                     <td style="color:#4ade80;">${(s.price || 0).toLocaleString()} 원</td>
                     <td style="font-size:12px; color:#cbd5e1;">${s.news || '-'}</td>
-                    <td>
-                        <button class="btn btn-purple" style="padding: 6px 12px; font-size: 13px;" onclick="openGiftModal('${s.ticker}')">🎁 선물하기</button>
-                    </td>
+                    <td><button class="btn btn-purple" style="padding: 6px 12px; font-size: 13px;" onclick="openGiftModal('${s.ticker}')">🎁 선물하기</button></td>
                     <td>
                         <button class="btn btn-yellow" style="padding: 4px 8px; font-size: 11px;" onclick="editStockForm('${s.ticker}')">수정</button>
                         <button class="btn btn-red" style="padding: 4px 8px; font-size: 11px;" onclick="deleteStock('${s.ticker}')">삭제</button>
@@ -306,71 +290,36 @@
         const ticker = document.getElementById('stock-ticker').value.trim().toUpperCase();
         const name = document.getElementById('stock-name').value.trim();
         const newPrice = parseInt(document.getElementById('stock-price').value);
-        if (!ticker || !name || isNaN(newPrice)) { alert('필수 항목을 입력하세요!'); return; }
+        if (!ticker || !name || isNaN(newPrice)) { alert('필수 항목 입력!'); return; }
 
-        const existingStock = stockDataList.find(s => s.ticker === ticker);
-        const oldPrice = existingStock ? existingStock.price : newPrice;
-        const prevPrice = existingStock ? existingStock.prev_price : newPrice;
-
-        let finalNewsText = '정상 거래 진행 중';
-        let finalNewsWeight = 0.0;
-        const newsSelectVal = document.getElementById('stock-news-select').value;
-        
-        if (newsSelectVal !== '') {
-            const chosen = predefinedNewsList[parseInt(newsSelectVal)];
-            finalNewsText = chosen.text; finalNewsWeight = chosen.weight;
-        } else {
-            if (newPrice > oldPrice) {
-                const upList = predefinedNewsList.filter(n => n.type === 'up');
-                const chosen = upList[Math.floor(Math.random() * upList.length)];
-                finalNewsText = chosen.text; finalNewsWeight = chosen.weight;
-            } else if (newPrice < oldPrice) {
-                const downList = predefinedNewsList.filter(n => n.type === 'down');
-                const chosen = downList[Math.floor(Math.random() * downList.length)];
-                finalNewsText = chosen.text; finalNewsWeight = chosen.weight;
-            } else {
-                finalNewsText = existingStock ? existingStock.news : '📊 시장 관망세 유지 중';
-                finalNewsWeight = existingStock ? existingStock.news_weight : 0.0;
-            }
-        }
-
-        const { error } = await db.from('stock_market').upsert({ ticker, name, price: newPrice, prev_price: prevPrice, news: finalNewsText, news_weight: finalNewsWeight, updated_at: new Date() });
-        if (error) { alert('종목 저장 실패: ' + error.message); return; }
-
-        alert(`[${ticker}] 종목 저장 완료.`);
-        clearStockForm();
+        await db.from('stock_market').upsert({ ticker, name, price: newPrice, prev_price: newPrice, updated_at: new Date() });
+        alert('종목 저장 완료');
         loadStockTable();
     }
 
     async function deleteStock(ticker) {
-        if (!confirm(`[${ticker}] 삭제하시겠습니까?`)) return;
+        if (!confirm('삭제하시겠습니까?')) return;
         await db.from('stock_market').delete().eq('ticker', ticker);
         loadStockTable();
     }
 
     function editStockForm(ticker) {
-        const stock = stockDataList.find(s => s.ticker === ticker);
-        if (!stock) return;
-        document.getElementById('stock-ticker').value = stock.ticker;
-        document.getElementById('stock-name').value = stock.name;
-        document.getElementById('stock-price').value = stock.price;
-        document.getElementById('stock-news-weight').value = stock.news_weight || 0.0;
-        document.getElementById('stock-news-select').value = "";
+        const s = stockDataList.find(x => x.ticker === ticker);
+        if (!s) return;
+        document.getElementById('stock-ticker').value = s.ticker;
+        document.getElementById('stock-name').value = s.name;
+        document.getElementById('stock-price').value = s.price;
     }
 
     function clearStockForm() {
         document.getElementById('stock-ticker').value = '';
         document.getElementById('stock-name').value = '';
         document.getElementById('stock-price').value = '';
-        document.getElementById('stock-news-weight').value = '0.0';
-        document.getElementById('stock-news-select').value = '';
     }
 
     async function loadUserList() {
-        const { data, error } = await db.from('stock_rankings').select('*').order('name');
-        if (error) { console.error('유저 리스트 로드 에러:', error); return; }
+        const { data } = await db.from('stock_rankings').select('*').order('name');
         userListData = data || [];
-        
         const select = document.getElementById('user-select');
         select.innerHTML = '<option value="">-- 유저를 선택하세요 --</option>';
         userListData.forEach(u => {
@@ -387,282 +336,132 @@
     function onUserSelectChange() {
         const selectedName = document.getElementById('user-select').value;
         const user = userListData.find(u => u.name === selectedName);
-
         if (user) {
             document.getElementById('edit-user-name').value = user.name;
             document.getElementById('edit-user-pwd').value = user.password || '';
-
-            selectedUserPortfolio = {};
-            let rawPort = user.portfolio || {};
-            if (typeof rawPort === 'string') {
-                try { rawPort = JSON.parse(rawPort); } catch(e) { rawPort = {}; }
-            }
-
+            selectedUserPortfolio = user.portfolio || {};
+            
             let stockVal = 0;
-            for (let t in rawPort) {
-                const item = rawPort[t];
+            for (let t in selectedUserPortfolio) {
+                const item = selectedUserPortfolio[t];
                 const shares = (typeof item === 'number') ? item : (item.shares || 0);
-                const avgPrice = (typeof item === 'object' && item.avgPrice) ? item.avgPrice : (stockDataList.find(s => s.ticker === t)?.price || 1000);
-                
-                if (shares > 0) {
-                    selectedUserPortfolio[t] = { shares, avgPrice };
-                    stockVal += shares * (stockDataList.find(s => s.ticker === t)?.price || avgPrice);
-                }
+                stockVal += shares * (stockDataList.find(s => s.ticker === t)?.price || 1000);
             }
-
-            const totalCoins = user.coins || 1000000;
-            const pureCash = Math.max(0, totalCoins - stockVal);
-            document.getElementById('edit-user-cash').value = pureCash;
-
+            document.getElementById('edit-user-cash').value = Math.max(0, (user.coins || 1000000) - stockVal);
             renderUserStockUI();
-        } else {
-            document.getElementById('edit-user-name').value = '';
-            document.getElementById('edit-user-pwd').value = '';
-            document.getElementById('edit-user-cash').value = '';
-            selectedUserPortfolio = {};
-            document.getElementById('user-stock-list-ui').innerHTML = '<span style="color:#94a3b8; font-size:13px;">유저를 먼저 선택해주세요.</span>';
         }
     }
 
     function renderUserStockUI() {
         const container = document.getElementById('user-stock-list-ui');
         let html = '';
-        let keys = Object.keys(selectedUserPortfolio);
-
-        if (keys.length === 0) {
-            container.innerHTML = '<span style="color:#94a3b8; font-size:13px;">보유 중인 주식이 없습니다.</span>';
-            return;
-        }
-
-        keys.forEach(ticker => {
-            const item = selectedUserPortfolio[ticker];
-            const stockObj = stockDataList.find(s => s.ticker === ticker);
-            const name = stockObj ? stockObj.name : ticker;
-
-            html += `
-                <div class="user-stock-item">
-                    <div>
-                        <b>${name}</b> <span style="color:#38bdf8; font-size:12px;">(${ticker})</span>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <input type="number" id="user-shares-${ticker}" value="${item.shares}" min="0" style="width:70px; padding:4px; text-align:center;" onchange="updatePortfolioShares('${ticker}', this.value)">
-                        <span style="font-size:12px; color:#cbd5e1;">주</span>
-                        <button class="btn btn-red" style="padding:4px 8px; font-size:11px;" onclick="removeUserStock('${ticker}')">삭제</button>
-                    </div>
-                </div>
-            `;
-        });
-        container.innerHTML = html;
-    }
-
-    function updatePortfolioShares(ticker, val) {
-        let shares = parseInt(val);
-        if (isNaN(shares) || shares <= 0) {
-            delete selectedUserPortfolio[ticker];
-        } else {
-            if (!selectedUserPortfolio[ticker]) {
-                selectedUserPortfolio[ticker] = { shares: 0, avgPrice: stockDataList.find(s => s.ticker === ticker)?.price || 1000 };
+        for (let t in selectedUserPortfolio) {
+            const item = selectedUserPortfolio[t];
+            const shares = (typeof item === 'number') ? item : (item.shares || 0);
+            if (shares > 0) {
+                html += `<div class="user-stock-item"><b>${t}</b>: <input type="number" value="${shares}" style="width:70px;" onchange="updateShares('${t}', this.value)">주</div>`;
             }
-            selectedUserPortfolio[ticker].shares = shares;
         }
-        renderUserStockUI();
+        container.innerHTML = html || '보유 주식 없음';
     }
 
-    function removeUserStock(ticker) {
-        delete selectedUserPortfolio[ticker];
-        renderUserStockUI();
+    function updateShares(t, val) {
+        let s = parseInt(val);
+        if (s <= 0) delete selectedUserPortfolio[t];
+        else {
+            if (!selectedUserPortfolio[t]) selectedUserPortfolio[t] = {};
+            selectedUserPortfolio[t].shares = s;
+        }
     }
 
     async function saveUserData() {
         const name = document.getElementById('edit-user-name').value;
-        const pwd = document.getElementById('edit-user-pwd').value.trim();
         const cash = parseInt(document.getElementById('edit-user-cash').value);
+        if (!name) return;
 
-        if (!name) { alert('선택된 유저가 없습니다.'); return; }
-        if (isNaN(cash)) { alert('유효한 예수금 금액을 입력하세요.'); return; }
-
-        let totalStockVal = 0;
+        let stockVal = 0;
         for (let t in selectedUserPortfolio) {
-            const item = selectedUserPortfolio[t];
-            if (item && item.shares > 0) {
-                totalStockVal += item.shares * (stockDataList.find(s => s.ticker === t)?.price || item.avgPrice || 1000);
-            }
+            let s = selectedUserPortfolio[t].shares || selectedUserPortfolio[t];
+            stockVal += s * (stockDataList.find(x => x.ticker === t)?.price || 1000);
         }
 
-        const finalTotalCoins = cash + totalStockVal;
-
-        const { error } = await db.from('stock_rankings').update({
-            password: pwd,
-            coins: finalTotalCoins,
-            portfolio: selectedUserPortfolio,
-            updated_at: new Date()
-        }).eq('name', name);
-
-        if (error) {
-            alert('유저 정보 저장 실패: ' + error.message);
-        } else {
-            alert(`[${name}] 유저 자산(${finalTotalCoins.toLocaleString()}원) 및 주식 수량이 완전히 수정되었습니다!`);
-            loadUserList();
-        }
+        const { error } = await db.from('stock_rankings').update({ coins: cash + stockVal, portfolio: selectedUserPortfolio }).eq('name', name);
+        if (error) alert('저장 실패: ' + error.message);
+        else { alert('유저 정보 저장 완료!'); loadUserList(); }
     }
 
     async function deleteUser() {
         const name = document.getElementById('edit-user-name').value;
-        if (!name || !confirm(`[${name}] 계정을 삭제하시겠습니까?`)) return;
+        if (!name || !confirm('삭제하시겠습니까?')) return;
         await db.from('stock_rankings').delete().eq('name', name);
         loadUserList();
-        onUserSelectChange();
     }
 
-    async function openGiftModal(ticker) {
+    function openGiftModal(ticker) {
         giftTargetTicker = ticker;
-        await loadUserList();
-        if (userListData.length === 0) { alert('등록된 유저가 없습니다.'); return; }
-        document.getElementById('gift-modal-title').innerText = `🎁 [${ticker}] 주식 선물하기`;
         document.getElementById('gift-modal').style.display = 'flex';
     }
 
     function closeGiftModal() {
         document.getElementById('gift-modal').style.display = 'none';
-        giftTargetTicker = null;
     }
 
+    // 디버깅 알림창이 포함된 선물 전송 함수
     async function executeGiftStock() {
         const targetUserName = document.getElementById('gift-target-user').value;
         const qty = parseInt(document.getElementById('gift-quantity').value);
 
-        if (!targetUserName || isNaN(qty) || qty <= 0) {
-            alert('올바른 수량을 입력하세요.');
+        alert(`디버그: ${targetUserName}님에게 ${giftTargetTicker}를 ${qty}주 선물 전송 시작...`);
+
+        const { data: targetUser, error } = await db.from('stock_rankings').select('*').eq('name', targetUserName).maybeSingle();
+        
+        if (error) {
+            alert('DB 조회 에러 발생: ' + error.message);
+            return;
+        }
+        if (!targetUser) {
+            alert('유저를 찾을 수 없습니다! 이름이 정확한지 확인하세요.');
             return;
         }
 
-        const { data: targetUser, error } = await db.from('stock_rankings').select('*').eq('name', targetUserName).maybeSingle();
-        if (error || !targetUser) { 
-            alert('대상 유저를 찾을 수 없습니다: ' + (error ? error.message : '')); 
-            return; 
-        }
-
-        let targetPort = {};
-        let rawPort = targetUser.portfolio;
-        if (typeof rawPort === 'string') {
-            try { rawPort = JSON.parse(rawPort); } catch(e) { rawPort = {}; }
-        }
-        rawPort = rawPort || {};
-
-        for (let t in rawPort) {
-            let item = rawPort[t];
-            let shares = 0;
-            let avgPrice = stockDataList.find(st => st.ticker === t)?.price || 1000;
-
-            if (typeof item === 'number') {
-                shares = item;
-            } else if (item && typeof item === 'object') {
-                shares = item.shares || 0;
-                avgPrice = item.avgPrice || avgPrice;
-            }
-
-            if (shares > 0) {
-                targetPort[t] = { shares: shares, avgPrice: avgPrice };
-            }
-        }
-
-        const curPrice = stockDataList.find(s => s.ticker === giftTargetTicker)?.price || 1000;
+        let port = targetUser.portfolio || {};
+        let curShares = port[giftTargetTicker] ? (port[giftTargetTicker].shares || port[giftTargetTicker]) : 0;
         
-        if (!targetPort[giftTargetTicker]) {
-            targetPort[giftTargetTicker] = { shares: qty, avgPrice: curPrice };
-        } else {
-            targetPort[giftTargetTicker].shares += qty;
-        }
+        port[giftTargetTicker] = { shares: curShares + qty, avgPrice: stockDataList.find(s => s.ticker === giftTargetTicker)?.price || 1000 };
 
-        let totalStockVal = 0;
-        for (let t in targetPort) {
-            let p = stockDataList.find(s => s.ticker === t)?.price || targetPort[t].avgPrice || 1000;
-            totalStockVal += targetPort[t].shares * p;
+        let stockVal = 0;
+        for (let t in port) {
+            let s = port[t].shares || port[t];
+            stockVal += s * (stockDataList.find(s => s.ticker === t)?.price || 1000);
         }
 
         let oldStockVal = 0;
-        for (let t in rawPort) {
-            let item = rawPort[t];
-            let s = (typeof item === 'number') ? item : (item?.shares || 0);
+        for (let t in targetUser.portfolio || {}) {
+            let s = targetUser.portfolio[t].shares || targetUser.portfolio[t];
             if (t === giftTargetTicker) s = Math.max(0, s - qty);
-            let p = stockDataList.find(st => st.ticker === t)?.price || 1000;
-            oldStockVal += s * p;
+            oldStockVal += s * (stockDataList.find(s => s.ticker === t)?.price || 1000);
         }
-        
         const pureCash = Math.max(0, (targetUser.coins || 1000000) - oldStockVal);
-        const newTotalCoins = pureCash + totalStockVal;
 
         const { error: updateErr } = await db.from('stock_rankings').update({
-            coins: newTotalCoins,
-            portfolio: targetPort,
-            updated_at: new Date()
+            coins: pureCash + stockVal,
+            portfolio: port
         }).eq('name', targetUserName);
 
         if (updateErr) {
-            alert('선물 실패 (DB 에러): ' + updateErr.message);
+            alert('업데이트 실패 에러: ' + updateErr.message);
         } else {
-            alert(`🎁 [${targetUserName}]님에게 [${giftTargetTicker}] ${qty}주 선물이 완료되었습니다!`);
+            alert(`성공! ${targetUserName}님에게 선물이 반영되었습니다.`);
             closeGiftModal();
             loadUserList();
         }
     }
 
-    async function loadMarketConfig() {
-        const { data } = await db.from('market_config').select('*').eq('id', 1).maybeSingle();
-        if (data) {
-            document.getElementById('cfg-max-rate').value = data.max_rate || 1.5;
-            document.getElementById('cfg-max-price').value = data.max_price || 0;
-            document.getElementById('cfg-boost-multiplier').value = data.boost_multiplier || 0;
-            document.getElementById('cfg-notice-text').value = data.notice_text || '';
-            document.getElementById('cfg-notice-duration').value = data.notice_duration || 30;
-        }
-    }
-
-    async function saveMarketConfig() {
-        const maxRate = parseFloat(document.getElementById('cfg-max-rate').value) || 1.5;
-        const maxPrice = parseInt(document.getElementById('cfg-max-price').value) || 0;
-        const boostMultiplier = parseFloat(document.getElementById('cfg-boost-multiplier').value) || 0.0;
-
-        await db.from('market_config').update({ max_rate: maxRate, max_price: maxPrice, boost_multiplier: boostMultiplier }).eq('id', 1);
-        alert('시장 설정이 저장되었습니다.');
-    }
-
-    async function saveNoticeConfig() {
-        const noticeText = document.getElementById('cfg-notice-text').value.trim();
-        const durationSec = parseInt(document.getElementById('cfg-notice-duration').value) || 0;
-        let expireAt = durationSec > 0 ? new Date(Date.now() + durationSec * 1000).toISOString() : null;
-
-        await db.from('market_config').update({ notice_text: noticeText, notice_duration: durationSec, notice_expire_at: expireAt }).eq('id', 1);
-        alert('📢 공지사항이 등록되었습니다!');
-    }
-
-    async function clearNoticeConfig() {
-        if (!confirm('공지를 취소하시겠습니까?')) return;
-        await db.from('market_config').update({ notice_text: '', notice_duration: 0, notice_expire_at: null }).eq('id', 1);
-        document.getElementById('cfg-notice-text').value = '';
-        alert('📢 공지가 취소되었습니다.');
-    }
-
-    async function resetAllStockPrices() {
-        if (!confirm('모든 주식 가격을 초기 상장가로 리셋하시겠습니까?')) return;
-        const defaultPrices = {
-            'NVDA': 120000, 'AAPL': 210000, 'MSFT': 580000, 'GOOGL': 180000, 'AMZN': 250000,
-            'META': 620000, 'TSLA': 290000, 'BRK.B': 590000, 'TSM': 210000, 'LLY': 1100000,
-            'AVGO': 220000, 'WMT': 100000, 'JPM': 280000, 'NFLX': 950000, 'AMD': 180000,
-            'XOM': 150000, 'MA': 650000, 'UNH': 780000, 'COST': 1150000, 'PG': 230000,
-            'JNJ': 210000, 'HD': 530000, 'BAC': 55000, 'ABBV': 280000, 'CRM': 420000,
-            'ORCL': 210000, 'CVX': 200000, 'MRK': 140000, 'ADBE': 720000, 'TMUS': 280000,
-            'DIS': 130000, 'KO': 95000, 'PEP': 210000, 'QCOM': 240000, 'INTC': 35000,
-            'AMGN': 410000, 'IBM': 320000, 'CAT': 540000, 'VZ': 55000, 'PFE': 38000,
-            'BA': 230000, 'GE': 290000, 'NOW': 1300000, 'SPGI': 710000, 'UBER': 110000,
-            'MCD': 420000, 'SBUX': 130000, 'NKE': 110000, 'PLTR': 65000, 'COIN': 310000
-        };
-        for (let ticker in defaultPrices) {
-            await db.from('stock_market').update({ price: defaultPrices[ticker], prev_price: defaultPrices[ticker], updated_at: new Date() }).eq('ticker', ticker);
-        }
-        alert('시세 리셋 완료.');
-        loadStockTable();
-    }
+    async function loadMarketConfig() {}
+    async function saveMarketConfig() {}
+    async function saveNoticeConfig() {}
+    async function clearNoticeConfig() {}
+    async function resetAllStockPrices() {}
 </script>
 </body>
 </html>
