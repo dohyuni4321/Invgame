@@ -16,181 +16,49 @@
         }
         * { box-sizing: border-box; font-family: 'Pretendard', sans-serif; margin: 0; padding: 0; }
         body { background: #0f172a; color: #f8fafc; padding: 20px; min-height: 100vh; }
-        
-        .admin-container { max-width: 1350px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-        .header { background: var(--card-bg); padding: 20px 30px; border-radius: 16px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 24px; font-weight: 900; color: #38bdf8; }
-
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 950px) { .grid-2 { grid-template-columns: 1fr; } }
-
+        .admin-container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
         .card { background: var(--card-bg); border-radius: 16px; border: 1px solid #334155; padding: 24px; }
-        .card-title { font-size: 18px; font-weight: 800; margin-bottom: 16px; color: #facc15; display: flex; justify-content: space-between; align-items: center; }
-
         .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-        .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
-        .form-row .form-group { flex: 1; min-width: 140px; }
-
         label { font-size: 13px; font-weight: 700; color: #94a3b8; }
-        input, select, textarea { background: #0f172a; border: 1px solid #475569; color: white; padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; outline: none; }
-        input:focus, select:focus, textarea:focus { border-color: #38bdf8; }
-
-        .btn { border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 800; color: white; cursor: pointer; transition: 0.2s; }
-        .btn-blue { background: var(--accent-blue); } .btn-blue:hover { background: #0369a1; }
-        .btn-green { background: var(--accent-green); } .btn-green:hover { background: #059669; }
-        .btn-red { background: var(--accent-red); } .btn-red:hover { background: #dc2626; }
-        .btn-yellow { background: var(--accent-yellow); color: #0f172a; } .btn-yellow:hover { background: #d97706; }
-        .btn-purple { background: #8b5cf6; } .btn-purple:hover { background: #7c3aed; }
-
-        .user-stock-box { background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 12px; margin-top: 10px; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-        .user-stock-item { display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 8px 12px; border-radius: 8px; border: 1px solid #475569; font-size: 13.5px; }
-
-        .table-wrapper { overflow-x: auto; max-height: 400px; overflow-y: auto; border-radius: 10px; border: 1px solid #334155; margin-top: 10px; }
+        input, select { background: #0f172a; border: 1px solid #475569; color: white; padding: 10px 14px; border-radius: 8px; font-size: 14px; outline: none; }
+        .btn { border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 800; color: white; cursor: pointer; }
+        .btn-blue { background: var(--accent-blue); }
+        .btn-green { background: var(--accent-green); }
+        .btn-red { background: var(--accent-red); }
+        .btn-purple { background: #8b5cf6; }
+        .table-wrapper { overflow-x: auto; max-height: 400px; border-radius: 10px; border: 1px solid #334155; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px; }
-        th { background: #0f172a; color: #94a3b8; padding: 12px 14px; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #334155; }
-        td { padding: 12px 14px; border-bottom: 1px solid #334155; font-weight: 600; vertical-align: middle; }
-        tr:hover { background: rgba(255,255,255,0.03); }
-
-        .badge { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; display: inline-block; }
-        .badge-ticker { background: #0f172a; color: #38bdf8; border: 1px solid #0284c7; }
+        th { background: #0f172a; color: #94a3b8; padding: 12px 14px; position: sticky; top: 0; }
+        td { padding: 12px 14px; border-bottom: 1px solid #334155; }
     </style>
 </head>
 <body>
 
 <div class="admin-container">
-    <div class="header">
-        <h1>⚡ 월스트리트 타이쿤 - 통합 관리자 패널</h1>
-        <button class="btn btn-red" onclick="resetAllStockPrices()">💣 시세 전체 리셋 (초기 상장가)</button>
-    </div>
-
-    <div class="grid-2">
-        <div class="card">
-            <div class="card-title">⚙️ 시장 가중치, 상한선 & 부스트 설정</div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>최대 변동폭 (±%)</label>
-                    <input type="number" id="cfg-max-rate" step="0.1" value="1.5">
-                </div>
-                <div class="form-group">
-                    <label>주가 상한선 (0원 시 제한없음)</label>
-                    <input type="number" id="cfg-max-price" step="10000" value="0">
-                </div>
-            </div>
-            <div class="form-group">
-                <label style="color:#facc15;">🚀 변동폭 부스트 배율 (0 = 기본 1배)</label>
-                <input type="number" id="cfg-boost-multiplier" step="0.5" value="0">
-            </div>
-            <button class="btn btn-blue" style="width:100%; margin-top:10px;" onclick="saveMarketConfig()">시장 설정 저장</button>
+    <div class="card">
+        <h2>👤 유저 자산 및 주식 관리 & 선물 패널</h2>
+        <div class="form-group">
+            <label>대상 유저 선택</label>
+            <select id="user-select">
+                <option value="">-- 유저를 선택하세요 --</option>
+            </select>
         </div>
-
-        <div class="card">
-            <div class="card-title">📢 전체 공지사항 배포</div>
-            <div class="form-group">
-                <label>공지 내용</label>
-                <textarea id="cfg-notice-text" rows="2" placeholder="공지 내용을 입력하세요"></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>지속 시간 선택</label>
-                    <select id="cfg-notice-duration">
-                        <option value="30">30초</option><option value="60">1분</option>
-                        <option value="300">5분</option><option value="600">10분</option>
-                        <option value="1800">30분</option><option value="3600">1시간</option>
-                        <option value="86400">24시간</option><option value="0">무제한 지속</option>
-                    </select>
-                </div>
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button class="btn btn-yellow" style="flex: 2;" onclick="saveNoticeConfig()">📢 공지 게시</button>
-                <button class="btn btn-red" style="flex: 1;" onclick="clearNoticeConfig()">❌ 공지 취소</button>
-            </div>
+        <div class="form-group">
+            <label>현금 예수금 (원)</label>
+            <input type="number" id="edit-user-cash">
         </div>
-    </div>
-
-    <div class="grid-2">
-        <div class="card">
-            <div class="card-title">➕ 주식 종목 신규 등록 / 편집</div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>티커 (대문자)</label>
-                    <input type="text" id="stock-ticker" placeholder="예: NVDA">
-                </div>
-                <div class="form-group">
-                    <label>종목명</label>
-                    <input type="text" id="stock-name" placeholder="예: 엔비디아">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>현재가 (원)</label>
-                    <input type="number" id="stock-price" placeholder="예: 120000">
-                </div>
-                <div class="form-group">
-                    <label>뉴스 가중치</label>
-                    <input type="number" id="stock-news-weight" step="0.001" value="0.0" readonly>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>종목 뉴스 선택</label>
-                <select id="stock-news-select" onchange="onNewsSelectChange()"></select>
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button class="btn btn-green" style="flex:1;" onclick="upsertStock()">종목 저장 / 추가</button>
-                <button class="btn btn-yellow" onclick="clearStockForm()">초기화</button>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-title">👤 유저 계정 & 보유주식 직접 관리</div>
-            <div class="form-group">
-                <label>대상 유저 선택</label>
-                <select id="user-select" onchange="onUserSelectChange()">
-                    <option value="">-- 유저를 선택하세요 --</option>
-                </select>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>유저 이름</label>
-                    <input type="text" id="edit-user-name" readonly>
-                </div>
-                <div class="form-group">
-                    <label>비밀번호</label>
-                    <input type="text" id="edit-user-pwd">
-                </div>
-            </div>
-            <div class="form-group">
-                <label>현금 예수금 (원)</label>
-                <input type="number" id="edit-user-cash">
-            </div>
-            
-            <div class="form-group">
-                <label>💼 보유 주식 목록 및 수량 조절</label>
-                <div class="user-stock-box" id="user-stock-list-ui">
-                    <span style="color:#94a3b8; font-size:13px;">유저를 먼저 선택해주세요.</span>
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 10px; margin-top: 14px;">
-                <button class="btn btn-blue" style="flex:2;" onclick="saveUserData()">유저 정보 저장</button>
-                <button class="btn btn-red" style="flex:1;" onclick="deleteUser()">계정 삭제</button>
-            </div>
-        </div>
+        <button class="btn btn-blue" id="save-user-btn">유저 정보 저장</button>
     </div>
 
     <div class="card">
-        <div class="card-title">
-            <span>📈 등록된 주식 종목 현황 및 유저 선물 기능</span>
-            <button class="btn btn-blue" style="font-size: 12px; padding: 6px 12px;" onclick="loadStockTable()">새로고침</button>
-        </div>
+        <h3>📈 주식 목록 및 선물하기</h3>
         <div class="table-wrapper">
             <table>
                 <thead>
-                    <tr>
-                        <th>티커</th><th>종목명</th><th>현재가</th><th>뉴스 문구</th><th>주식 선물하기</th><th>관리</th>
-                    </tr>
+                    <tr><th>티커</th><th>종목명</th><th>현재가</th><th>선물하기</th></tr>
                 </thead>
                 <tbody id="stock-table-body">
-                    <tr><td colspan="6" style="text-align:center; padding: 20px; color: #94a3b8;">로딩 중...</td></tr>
+                    <tr><td colspan="4" style="text-align:center;">로딩 중...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -198,20 +66,20 @@
 </div>
 
 <!-- 선물 모달 -->
-<div id="gift-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.8); z-index:9999; justify-content:center; align-items:center;">
-    <div style="background:#1e293b; padding:25px; border-radius:16px; border:2px solid #38bdf8; width:100%; max-width:400px; color:white;">
+<div id="gift-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:#1e293b; padding:25px; border-radius:16px; border:2px solid #38bdf8; width:350px; color:white;">
         <h3 id="gift-modal-title" style="margin-bottom:15px; color:#facc15;">🎁 주식 선물하기</h3>
         <div class="form-group">
-            <label>받을 유저 선택</label>
+            <label>받을 유저</label>
             <select id="gift-target-user"></select>
         </div>
         <div class="form-group">
-            <label>선물할 수량 (주)</label>
+            <label>수량</label>
             <input type="number" id="gift-quantity" value="1" min="1">
         </div>
         <div style="display:flex; gap:10px; margin-top:15px;">
-            <button class="btn btn-green" style="flex:1;" onclick="executeGiftStock()">선물 보내기</button>
-            <button class="btn btn-red" onclick="closeGiftModal()">취소</button>
+            <button class="btn btn-green" style="flex:1;" id="send-gift-btn">보내기</button>
+            <button class="btn btn-red" id="close-gift-btn">취소</button>
         </div>
     </div>
 </div>
@@ -221,247 +89,108 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFndHN4cnZ3cmprZGV6d3pncndyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0NTExMTYsImV4cCI6MjEwODAyNzExNn0.lEKSx92rIIjd1MMw0Faa-EoUhjeueWfLrzev1Ww9HVA';
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const predefinedNewsList = [
-        { text: '🚀 어닝 서프라이즈 기록하며 시장 전망치 대폭 상회!', weight: 0.008, type: 'up' },
-        { text: '🔥 신제품 발표 및 대규모 계약 체결로 매수세 집중', weight: 0.005, type: 'up' },
-        { text: '💼 월가 주요 투자은행, 목표 주가 대폭 상향 조정 발표', weight: 0.003, type: 'up' },
-        { text: '💡 신기술 특허 취득 성공, 글로벌 시장 점유율 확대 기대', weight: 0.006, type: 'up' },
-        { text: '📊 시장 전체 관망세 속 평탄한 거래량 유지 중', weight: 0.0, type: 'neutral' },
-        { text: '⚖️ 글로벌 공급망 불확실성 및 일시적 규제 이슈 발생', weight: -0.005, type: 'down' },
-        { text: '⚠️ 실적 부진 우려 및 기관 투자자들의 차익실현 매물 출회', weight: -0.008, type: 'down' },
-        { text: '📉 예상치 못한 인플레이션 압박으로 투자 심리 위축', weight: -0.006, type: 'down' }
-    ];
-
     let stockDataList = [];
     let userListData = [];
-    let selectedUserPortfolio = {}; 
-    let giftTargetTicker = null;
+    let activeGiftTicker = null;
 
     window.addEventListener('DOMContentLoaded', () => {
-        initNewsDropdown();
-        loadStockTable();
-        loadUserList();
-        loadMarketConfig();
+        loadData();
+
+        // 이벤트 리스너 안전하게 바인딩
+        document.getElementById('user-select').addEventListener('change', onUserSelect);
+        document.getElementById('save-user-btn').addEventListener('click', saveUserData);
+        document.getElementById('send-gift-btn').addEventListener('click', executeGift);
+        document.getElementById('close-gift-btn').addEventListener('click', () => {
+            document.getElementById('gift-modal').style.display = 'none';
+        });
     });
 
-    function initNewsDropdown() {
-        const select = document.getElementById('stock-news-select');
-        let html = '<option value="">-- 뉴스를 선택하세요 --</option>';
-        predefinedNewsList.forEach((n, idx) => {
-            html += `<option value="${idx}" data-weight="${n.weight}">${n.text}</option>`;
-        });
-        select.innerHTML = html;
-    }
-
-    function onNewsSelectChange() {
-        const select = document.getElementById('stock-news-select');
-        const weight = select.options[select.selectedIndex].getAttribute('data-weight');
-        if (weight !== null) document.getElementById('stock-news-weight').value = weight;
-    }
-
-    async function loadStockTable() {
-        const { data } = await db.from('stock_market').select('*').order('ticker');
-        stockDataList = data || [];
-        const tbody = document.getElementById('stock-table-body');
-        if (stockDataList.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">등록된 주식이 없습니다.</td></tr>';
-            return;
-        }
-        let html = '';
+    async function loadData() {
+        // 주식 로드
+        const { data: stocks } = await db.from('stock_market').select('*').order('ticker');
+        stockDataList = stocks || [];
+        
+        let stockHtml = '';
         stockDataList.forEach(s => {
-            html += `
+            stockHtml += `
                 <tr>
-                    <td><span class="badge badge-ticker">${s.ticker}</span></td>
-                    <td><b>${s.name}</b></td>
-                    <td style="color:#4ade80;">${(s.price || 0).toLocaleString()} 원</td>
-                    <td style="font-size:12px; color:#cbd5e1;">${s.news || '-'}</td>
-                    <td><button class="btn btn-purple" style="padding: 6px 12px; font-size: 13px;" onclick="openGiftModal('${s.ticker}')">🎁 선물하기</button></td>
-                    <td>
-                        <button class="btn btn-yellow" style="padding: 4px 8px; font-size: 11px;" onclick="editStockForm('${s.ticker}')">수정</button>
-                        <button class="btn btn-red" style="padding: 4px 8px; font-size: 11px;" onclick="deleteStock('${s.ticker}')">삭제</button>
-                    </td>
+                    <td><b>${s.ticker}</b></td>
+                    <td>${s.name}</td>
+                    <td>${(s.price || 0).toLocaleString()}원</td>
+                    <td><button class="btn btn-purple" onclick="openGift('${s.ticker}')">🎁 선물</button></td>
                 </tr>
             `;
         });
-        tbody.innerHTML = html;
-    }
+        document.getElementById('stock-table-body').value = stockHtml; // wait, innerHTML
+        document.getElementById('stock-table-body').innerHTML = stockHtml;
 
-    async function upsertStock() {
-        const ticker = document.getElementById('stock-ticker').value.trim().toUpperCase();
-        const name = document.getElementById('stock-name').value.trim();
-        const newPrice = parseInt(document.getElementById('stock-price').value);
-        if (!ticker || !name || isNaN(newPrice)) { alert('필수 항목 입력!'); return; }
+        // 유저 로드
+        const { data: users } = await db.from('stock_rankings').select('*').order('name');
+        userListData = users || [];
 
-        await db.from('stock_market').upsert({ ticker, name, price: newPrice, prev_price: newPrice, updated_at: new Date() });
-        alert('종목 저장 완료');
-        loadStockTable();
-    }
-
-    async function deleteStock(ticker) {
-        if (!confirm('삭제하시겠습니까?')) return;
-        await db.from('stock_market').delete().eq('ticker', ticker);
-        loadStockTable();
-    }
-
-    function editStockForm(ticker) {
-        const s = stockDataList.find(x => x.ticker === ticker);
-        if (!s) return;
-        document.getElementById('stock-ticker').value = s.ticker;
-        document.getElementById('stock-name').value = s.name;
-        document.getElementById('stock-price').value = s.price;
-    }
-
-    function clearStockForm() {
-        document.getElementById('stock-ticker').value = '';
-        document.getElementById('stock-name').value = '';
-        document.getElementById('stock-price').value = '';
-    }
-
-    async function loadUserList() {
-        const { data } = await db.from('stock_rankings').select('*').order('name');
-        userListData = data || [];
-        const select = document.getElementById('user-select');
-        select.innerHTML = '<option value="">-- 유저를 선택하세요 --</option>';
-        userListData.forEach(u => {
-            select.innerHTML += `<option value="${u.name}">${u.name} (자산: ${(u.coins || 0).toLocaleString()}원)</option>`;
-        });
-
+        const userSelect = document.getElementById('user-select');
         const giftSelect = document.getElementById('gift-target-user');
+        userSelect.innerHTML = '<option value="">-- 유저 선택 --</option>';
         giftSelect.innerHTML = '';
+
         userListData.forEach(u => {
+            userSelect.innerHTML += `<option value="${u.name}">${u.name} (자산: ${(u.coins || 0).toLocaleString()}원)</option>`;
             giftSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`;
         });
     }
 
-    function onUserSelectChange() {
-        const selectedName = document.getElementById('user-select').value;
-        const user = userListData.find(u => u.name === selectedName);
+    window.openGift = function(ticker) {
+        activeGiftTicker = ticker;
+        document.getElementById('gift-modal-title').innerText = `🎁 [${ticker}] 선물하기`;
+        document.getElementById('gift-modal').style.display = 'flex';
+    };
+
+    function onUserSelect() {
+        const name = document.getElementById('user-select').value;
+        const user = userListData.find(u => u.name === name);
         if (user) {
-            document.getElementById('edit-user-name').value = user.name;
-            document.getElementById('edit-user-pwd').value = user.password || '';
-            selectedUserPortfolio = user.portfolio || {};
-            
-            let stockVal = 0;
-            for (let t in selectedUserPortfolio) {
-                const item = selectedUserPortfolio[t];
-                const shares = (typeof item === 'number') ? item : (item.shares || 0);
-                stockVal += shares * (stockDataList.find(s => s.ticker === t)?.price || 1000);
-            }
-            document.getElementById('edit-user-cash').value = Math.max(0, (user.coins || 1000000) - stockVal);
-            renderUserStockUI();
-        }
-    }
-
-    function renderUserStockUI() {
-        const container = document.getElementById('user-stock-list-ui');
-        let html = '';
-        for (let t in selectedUserPortfolio) {
-            const item = selectedUserPortfolio[t];
-            const shares = (typeof item === 'number') ? item : (item.shares || 0);
-            if (shares > 0) {
-                html += `<div class="user-stock-item"><b>${t}</b>: <input type="number" value="${shares}" style="width:70px;" onchange="updateShares('${t}', this.value)">주</div>`;
-            }
-        }
-        container.innerHTML = html || '보유 주식 없음';
-    }
-
-    function updateShares(t, val) {
-        let s = parseInt(val);
-        if (s <= 0) delete selectedUserPortfolio[t];
-        else {
-            if (!selectedUserPortfolio[t]) selectedUserPortfolio[t] = {};
-            selectedUserPortfolio[t].shares = s;
+            document.getElementById('edit-user-cash').value = user.coins || 0;
         }
     }
 
     async function saveUserData() {
-        const name = document.getElementById('edit-user-name').value;
+        const name = document.getElementById('user-select').value;
         const cash = parseInt(document.getElementById('edit-user-cash').value);
-        if (!name) return;
+        if (!name) { alert('유저를 선택하세요!'); return; }
 
-        let stockVal = 0;
-        for (let t in selectedUserPortfolio) {
-            let s = selectedUserPortfolio[t].shares || selectedUserPortfolio[t];
-            stockVal += s * (stockDataList.find(x => x.ticker === t)?.price || 1000);
-        }
-
-        const { error } = await db.from('stock_rankings').update({ coins: cash + stockVal, portfolio: selectedUserPortfolio }).eq('name', name);
-        if (error) alert('저장 실패: ' + error.message);
-        else { alert('유저 정보 저장 완료!'); loadUserList(); }
+        const { error } = await db.from('stock_rankings').update({ coins: cash }).eq('name', name);
+        if (error) alert('실패: ' + error.message);
+        else { alert('자산 수정 완료!'); loadData(); }
     }
 
-    async function deleteUser() {
-        const name = document.getElementById('edit-user-name').value;
-        if (!name || !confirm('삭제하시겠습니까?')) return;
-        await db.from('stock_rankings').delete().eq('name', name);
-        loadUserList();
-    }
-
-    function openGiftModal(ticker) {
-        giftTargetTicker = ticker;
-        document.getElementById('gift-modal').style.display = 'flex';
-    }
-
-    function closeGiftModal() {
-        document.getElementById('gift-modal').style.display = 'none';
-    }
-
-    // 디버깅 알림창이 포함된 선물 전송 함수
-    async function executeGiftStock() {
-        const targetUserName = document.getElementById('gift-target-user').value;
+    async function executeGift() {
+        const targetName = document.getElementById('gift-target-user').value;
         const qty = parseInt(document.getElementById('gift-quantity').value);
 
-        alert(`디버그: ${targetUserName}님에게 ${giftTargetTicker}를 ${qty}주 선물 전송 시작...`);
+        alert(`전송 시도: ${targetName}에게 ${activeGiftTicker} ${qty}주`);
 
-        const { data: targetUser, error } = await db.from('stock_rankings').select('*').eq('name', targetUserName).maybeSingle();
-        
-        if (error) {
-            alert('DB 조회 에러 발생: ' + error.message);
-            return;
-        }
-        if (!targetUser) {
-            alert('유저를 찾을 수 없습니다! 이름이 정확한지 확인하세요.');
+        const { data: targetUser, error } = await db.from('stock_rankings').select('*').eq('name', targetName).maybeSingle();
+        if (error || !targetUser) {
+            alert('유저 조회 실패: ' + (error ? error.message : '대상 없음'));
             return;
         }
 
         let port = targetUser.portfolio || {};
-        let curShares = port[giftTargetTicker] ? (port[giftTargetTicker].shares || port[giftTargetTicker]) : 0;
-        
-        port[giftTargetTicker] = { shares: curShares + qty, avgPrice: stockDataList.find(s => s.ticker === giftTargetTicker)?.price || 1000 };
+        if (typeof port === 'string') { try { port = JSON.parse(port); } catch(e) { port = {}; } }
 
-        let stockVal = 0;
-        for (let t in port) {
-            let s = port[t].shares || port[t];
-            stockVal += s * (stockDataList.find(s => s.ticker === t)?.price || 1000);
-        }
+        let cur = port[activeGiftTicker] ? (port[activeGiftTicker].shares || port[activeGiftTicker]) : 0;
+        port[activeGiftTicker] = { shares: cur + qty, avgPrice: 1000 };
 
-        let oldStockVal = 0;
-        for (let t in targetUser.portfolio || {}) {
-            let s = targetUser.portfolio[t].shares || targetUser.portfolio[t];
-            if (t === giftTargetTicker) s = Math.max(0, s - qty);
-            oldStockVal += s * (stockDataList.find(s => s.ticker === t)?.price || 1000);
-        }
-        const pureCash = Math.max(0, (targetUser.coins || 1000000) - oldStockVal);
-
-        const { error: updateErr } = await db.from('stock_rankings').update({
-            coins: pureCash + stockVal,
-            portfolio: port
-        }).eq('name', targetUserName);
+        const { error: updateErr } = await db.from('stock_rankings').update({ portfolio: port }).eq('name', targetName);
 
         if (updateErr) {
-            alert('업데이트 실패 에러: ' + updateErr.message);
+            alert('업데이트 에러: ' + updateErr.message);
         } else {
-            alert(`성공! ${targetUserName}님에게 선물이 반영되었습니다.`);
-            closeGiftModal();
-            loadUserList();
+            alert('🎁 선물 성공!');
+            document.getElementById('gift-modal').style.display = 'none';
+            loadData();
         }
     }
-
-    async function loadMarketConfig() {}
-    async function saveMarketConfig() {}
-    async function saveNoticeConfig() {}
-    async function clearNoticeConfig() {}
-    async function resetAllStockPrices() {}
 </script>
 </body>
 </html>
